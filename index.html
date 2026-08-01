@@ -544,6 +544,14 @@ const SEED_PARTICIPANTS = {
   "yug": {"name":"Yug","category":"Option 2","logs":{}}
 };
 
+// Names to add to whatever's already in the live bucket, without touching
+// existing data. Add an entry here any time someone new needs to be
+// pre-registered — it applies itself automatically the next time anyone
+// loads the page, then has no further effect once that name exists.
+const PENDING_ADDITIONS = [
+  { name: 'Ramesh', category: 'Option 1' }
+];
+
 async function fetchParticipantsRaw(){
   try{
     const res = await fetch(KVDB_URL + '?t=' + Date.now(), { cache: 'no-store' });
@@ -585,6 +593,22 @@ async function loadAll(){
       data = SEED_PARTICIPANTS; // show seed locally even if the write failed
     }
   }
+
+  // Apply any pending additions that aren't in the bucket yet.
+  let changed = false;
+  PENDING_ADDITIONS.forEach(p => {
+    const slug = slugify(p.name);
+    if(!data[slug]){
+      data[slug] = { name: p.name, category: p.category, logs: {} };
+      changed = true;
+    }
+  });
+  if(changed){
+    try{
+      data = await writeParticipants(data);
+    }catch(e){ /* still show locally even if persisting failed */ }
+  }
+
   participantsData = data;
   refreshCache();
 }
