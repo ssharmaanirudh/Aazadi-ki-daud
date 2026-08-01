@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Azaadi Ki Daud — Flying Runners</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --saffron:#FF9933;
+    --saffron-deep:#E8590C;
+    --green:#138808;
+    --green-deep:#0B5D0B;
+    --navy:#0A1128;
+    --navy-2:#141B34;
+    --cream:#FFF8EE;
+    --ink:#1B1B22;
+    --pink:#D6336C;
+    --gold:#FFD60A;
+    --silver:#C7CDD6;
+    --bronze:#D08A4E;
+    --line:rgba(255,255,255,0.12);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--cream);
+    color:var(--ink);
+    font-family:'Manrope',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Bebas Neue',sans-serif;
+    letter-spacing:0.02em;
+    line-height:0.95;
+    margin:0;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  a{color:inherit;}
+  button{font-family:inherit;cursor:pointer;}
+  :focus-visible{outline:3px solid var(--pink);outline-offset:2px;}
+
+  /* ---------- NAV ---------- */
+  .nav{
+    position:sticky;top:0;z-index:50;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 28px;
+    background:var(--navy);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-mark{
+    width:36px;height:36px;border-radius:50%;
+    overflow:hidden;flex-shrink:0;
+  }
+  .brand-name{color:#fff;font-family:'Bebas Neue';font-size:20px;letter-spacing:0.06em;}
+  .nav-links{display:flex;gap:22px;font-size:14px;color:#cfd3e0;}
+  .nav-links a{text-decoration:none;opacity:0.85;transition:opacity .15s;}
+  .nav-links a:hover{opacity:1;color:var(--saffron);}
+
+  /* ---------- HERO ---------- */
+  .hero{
+    position:relative;
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(255,153,51,0.25), transparent 55%),
+      radial-gradient(ellipse at 85% 0%, rgba(19,136,8,0.28), transparent 55%),
+      var(--navy);
+    color:#fff;
+    padding:64px 28px 56px;
+    overflow:hidden;
+  }
+  .tri-stripe{position:absolute;left:0;right:0;top:0;height:5px;display:flex;}
+  .tri-stripe span{flex:1;}
+  .tri-stripe .s{background:var(--saffron);}
+  .tri-stripe .w{background:#fff;}
+  .tri-stripe .g{background:var(--green);}
+  .hero-inner{
+    max-width:1080px;margin:0 auto;
+    display:grid;grid-template-columns:1.3fr 1fr;gap:48px;align-items:center;
+  }
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,0.08);
+    border:1px solid var(--line);
+    padding:6px 14px;border-radius:999px;
+    font-size:12.5px;letter-spacing:0.08em;text-transform:uppercase;
+    color:var(--saffron);margin-bottom:18px;
+  }
+  .hero h1{font-size:clamp(48px,7vw,84px);}
+  .hero h1 .hi{color:var(--saffron);}
+  .hero h1 .lo{color:var(--green);-webkit-text-stroke:0;}
+  .hero-sub{
+    font-size:20px;color:#dfe3f0;margin-top:10px;font-weight:600;
+  }
+  .hero-desc{color:#aeb4c8;font-size:15px;margin-top:14px;max-width:520px;line-height:1.6;}
+  .hero-ctas{display:flex;gap:14px;margin-top:28px;flex-wrap:wrap;}
+  .btn{
+    padding:13px 24px;border-radius:10px;border:none;font-weight:700;font-size:14.5px;
+    letter-spacing:0.02em;transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover{transform:translateY(-2px);}
+  .btn-primary{background:var(--saffron);color:#1a0d00;box-shadow:0 8px 24px rgba(255,153,51,0.25);}
+  .btn-ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.35);}
+  .btn-ghost:hover{border-color:var(--green);color:var(--green);}
+
+  /* Chakra ring */
+  .chakra-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;}
+  .chakra{position:relative;width:220px;height:220px;}
+  .chakra svg{width:100%;height:100%;transform:rotate(-90deg);}
+  .chakra-center{
+    position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  }
+  .chakra-pct{font-family:'Bebas Neue';font-size:40px;color:#fff;}
+  .chakra-label{font-size:11px;color:#9aa2ba;letter-spacing:0.08em;text-transform:uppercase;margin-top:2px;}
+  .chakra-caption{font-size:13px;color:#aeb4c8;text-align:center;max-width:220px;}
+
+  /* ---------- SECTION WRAP ---------- */
+  .section{max-width:1080px;margin:0 auto;padding:64px 28px;}
+  .section-head{margin-bottom:32px;}
+  .kicker{
+    font-size:12.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--pink);font-weight:700;
+  }
+  .section h2{font-size:clamp(32px,4vw,46px);margin-top:6px;}
+
+  /* ---------- CATEGORY CARDS ---------- */
+  .cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+  .cat-card{
+    border-radius:18px;padding:28px;position:relative;overflow:hidden;
+    border:1px solid rgba(0,0,0,0.06);
+  }
+  .cat-inter{background:linear-gradient(160deg,#EAF6E4,#F7FCF3);}
+  .cat-pro{background:linear-gradient(160deg,#FFF0E0,#FFF8EF);}
+  .cat-tag{
+    display:inline-flex;align-items:center;gap:8px;font-family:'Bebas Neue';font-size:26px;
+    letter-spacing:0.03em;
+  }
+  .cat-inter .cat-tag{color:var(--green-deep);}
+  .cat-pro .cat-tag{color:var(--saffron-deep);}
+  .cat-goal{
+    margin-top:6px;font-size:15px;font-weight:700;color:#4a4a52;
+  }
+  .blocks{margin-top:18px;display:flex;flex-direction:column;gap:8px;}
+  .block-row{
+    display:flex;justify-content:space-between;align-items:center;
+    background:rgba(255,255,255,0.6);border:1px solid rgba(0,0,0,0.05);
+    border-radius:10px;padding:10px 14px;font-size:13.5px;
+  }
+  .block-row b{font-family:'IBM Plex Mono';}
+  .cat-rules{margin-top:18px;list-style:none;padding:0;display:flex;flex-direction:column;gap:9px;}
+  .cat-rules li{display:flex;gap:9px;font-size:14px;color:#3b3b42;align-items:flex-start;}
+  .cat-rules li:before{content:"✓";color:var(--green-deep);font-weight:800;flex-shrink:0;}
+  .cat-pro .cat-rules li:before{color:var(--saffron-deep);}
+  .flag-tip{
+    margin-top:14px;background:rgba(255,255,255,0.7);border-left:3px solid var(--pink);
+    padding:10px 14px;border-radius:8px;font-size:13px;color:#5b3b48;
+  }
+
+  /* ---------- RULES STRIP ---------- */
+  .rules-strip{
+    background:var(--navy-2);color:#fff;border-radius:18px;padding:28px 30px;margin-top:26px;
+  }
+  .rules-strip h3{font-family:'Bebas Neue';font-size:20px;color:var(--saffron);margin-bottom:14px;letter-spacing:0.04em;}
+  .rules-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px 30px;}
+  .rules-cols div{font-size:13.5px;color:#d6dae8;padding:7px 0;border-bottom:1px dashed var(--line);}
+  .rules-cols div:last-child{border-bottom:none;}
+  .rules-cols b{color:var(--gold);}
+
+  /* ---------- FORM ---------- */
+  .form-card{
+    background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:18px;padding:32px;
+    box-shadow:0 10px 40px rgba(10,17,40,0.06);
+  }
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px;}
+  .field{display:flex;flex-direction:column;gap:7px;}
+  .field.full{grid-column:1/-1;}
+  .field label{font-size:12.5px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#6a6a74;}
+  .field input,.field select{
+    padding:12px 14px;border-radius:10px;border:1.5px solid #e3e2dc;font-size:15px;font-family:inherit;
+    background:#FCFBF8;
+  }
+  .field input:focus,.field select:focus{border-color:var(--saffron);}
+  .field-error{font-size:12.5px;color:var(--pink);min-height:16px;}
+  .form-actions{display:flex;align-items:center;gap:16px;margin-top:8px;grid-column:1/-1;}
+  .form-msg{font-size:13.5px;font-weight:600;}
+  .form-msg.ok{color:var(--green-deep);}
+  .form-msg.err{color:var(--pink);}
+  .privacy-note{font-size:12px;color:#8a8a92;margin-top:14px;grid-column:1/-1;}
+
+  /* ---------- LEADERBOARD ---------- */
+  .tabs{display:flex;gap:10px;margin-bottom:20px;}
+  .tab{
+    padding:10px 20px;border-radius:999px;border:1.5px solid #e3e2dc;background:#fff;
+    font-weight:700;font-size:13.5px;color:#6a6a74;
+  }
+  .tab.active.inter{background:var(--green);color:#fff;border-color:var(--green);}
+  .tab.active.pro{background:var(--saffron-deep);color:#fff;border-color:var(--saffron-deep);}
+  .board{
+    background:#fff;border-radius:18px;border:1px solid rgba(0,0,0,0.07);overflow:hidden;
+    box-shadow:0 10px 40px rgba(10,17,40,0.05);
+  }
+  .board-row{
+    display:grid;grid-template-columns:48px 1fr 56px 90px 90px 110px;gap:14px;align-items:center;
+    padding:14px 20px;border-bottom:1px solid #f0efe9;
+  }
+  .board-row.head{
+    font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#9a9aa0;font-weight:700;
+    background:#FAF9F5;
+  }
+  .board-row:last-child{border-bottom:none;}
+  .rank{font-family:'Bebas Neue';font-size:22px;color:#b8b8bf;}
+  .rank.g{color:var(--saffron-deep);} .rank.s{color:#8b8b93;} .rank.b{color:var(--bronze);}
+  .runner-name{font-weight:700;font-size:14.5px;}
+  .runner-badge{font-size:11px;margin-left:6px;}
+  .mini-ring{width:38px;height:38px;}
+  .stat{font-family:'IBM Plex Mono';font-size:13.5px;}
+  .status-ok{color:var(--green-deep);font-size:12px;font-weight:700;}
+  .status-warn{color:var(--pink);font-size:12px;font-weight:700;}
+  .empty-state{padding:44px 20px;text-align:center;color:#9a9aa0;font-size:14px;}
+
+  /* ---------- FOOTER ---------- */
+  footer{
+    background:var(--navy);color:#cfd3e0;padding:40px 28px;text-align:center;
+  }
+  footer .foot-title{font-family:'Bebas Neue';font-size:24px;color:#fff;letter-spacing:0.05em;}
+  footer .foot-sub{font-size:13px;color:#8f95ac;margin-top:8px;}
+
+  @media (max-width:760px){
+    .hero-inner{grid-template-columns:1fr;}
+    .chakra-wrap{order:-1;}
+    .cat-grid{grid-template-columns:1fr;}
+    .rules-cols{grid-template-columns:1fr;}
+    .form-grid{grid-template-columns:1fr;}
+    .board-row{grid-template-columns:32px 1fr 70px;grid-template-areas:"rank name name" "ring stats stats";}
+    .board-row .mini-ring{display:none;}
+    .board-row.head{display:none;}
+    .stat.days,.stat.status-col{display:none;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important;animation:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="brand">
+    <div class="brand-mark"><svg viewBox="0 0 400 400" style="width:100%;height:100%">
+  <defs>
+    <path id="topArc3Nav" d="M 70,150 A 145,145 0 0 1 330,150" fill="none"/>
+    <path id="bottomArc3Nav" d="M 75,250 A 140,140 0 0 0 325,250" fill="none"/>
+    <linearGradient id="wingGrad3Nav" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#B8005F"/>
+      <stop offset="100%" stop-color="#FF3D9A"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="200" cy="200" r="190" fill="#0A0A10"/>
+  <circle cx="200" cy="200" r="182" fill="none" stroke="#FF2D8C" stroke-width="4"/>
+  <circle cx="200" cy="200" r="171" fill="none" stroke="#FF2D8C" stroke-width="1.5"/>
+
+  <text font-family="Arial, sans-serif" font-size="13.5" font-weight="700" fill="#ffffff" letter-spacing="1.8">
+    <textPath href="#topArc3Nav" startOffset="50%" text-anchor="middle">RUN TOGETHER &#8226; RISE TOGETHER</textPath>
+  </text>
+  <text font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff" letter-spacing="1.6">
+    <textPath href="#bottomArc3Nav" startOffset="50%" text-anchor="middle">FITNESS &#8226; FRIENDSHIP &#8226; FAMILY</textPath>
+  </text>
+
+  <!-- Wing: simple symmetric leaf/teardrop, rotated for a dynamic tilt -->
+  <g transform="translate(128,178) rotate(-18)">
+    <path d="M 0,-46
+             C 26,-40 40,-14 34,14
+             C 30,34 12,48 0,58
+             C -12,48 -30,34 -34,14
+             C -40,-14 -26,-40 0,-46 Z"
+          fill="url(#wingGrad3)"/>
+    <path d="M 0,-46 C 4,-10 4,25 0,58" stroke="#7a0048" stroke-width="1.4" fill="none" opacity="0.55"/>
+    <path d="M 0,-30 C 14,-22 22,-4 18,10" stroke="#7a0048" stroke-width="1" fill="none" opacity="0.45"/>
+    <path d="M 0,-30 C -14,-22 -22,-4 -18,10" stroke="#7a0048" stroke-width="1" fill="none" opacity="0.45"/>
+  </g>
+
+  <!-- Runner template: anatomical stick figure with capsule limbs -->
+  <g id="runnerTpl3Nav" stroke-linecap="round">
+    <line x1="6" y1="-28" x2="20" y2="-14" stroke-width="6"/>
+    <line x1="20" y1="-14" x2="15" y2="5" stroke-width="5"/>
+    <line x1="0" y1="0" x2="-14" y2="18" stroke-width="9"/>
+    <line x1="-14" y1="18" x2="-30" y2="33" stroke-width="7"/>
+    <line x1="0" y1="0" x2="6" y2="-28" stroke-width="11"/>
+    <line x1="0" y1="0" x2="16" y2="-6" stroke-width="9"/>
+    <line x1="16" y1="-6" x2="9" y2="25" stroke-width="7"/>
+    <line x1="6" y1="-28" x2="-9" y2="-17" stroke-width="6"/>
+    <line x1="-9" y1="-17" x2="-21" y2="-7" stroke-width="5"/>
+    <circle cx="9" cy="-38" r="8" stroke="none"/>
+  </g>
+
+  <use href="#runnerTpl3Nav" stroke="#8B909E" fill="#8B909E" transform="translate(168,232) scale(1.3)"/>
+  <use href="#runnerTpl3Nav" stroke="#D7DAE2" fill="#D7DAE2" transform="translate(198,228) scale(1.45)"/>
+  <use href="#runnerTpl3Nav" stroke="#FF2D8C" fill="#FF2D8C" transform="translate(232,224) scale(1.6)"/>
+
+  <text x="200" y="298" font-family="Arial, sans-serif" font-size="30" font-weight="300"
+        fill="#ffffff" text-anchor="middle" letter-spacing="7">FLYING</text>
+  <text x="200" y="333" font-family="Arial, sans-serif" font-size="32" font-weight="800"
+        fill="#ffffff" text-anchor="middle" letter-spacing="2">RUNNERS</text>
+</svg></div>
+    <div class="brand-name">FLYING RUNNERS</div>
+  </div>
+  <div class="nav-links">
+    <a href="#categories">Categories</a>
+    <a href="#log">Log Run</a>
+    <a href="#leaderboard">Leaderboard</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="tri-stripe"><span class="s"></span><span class="w"></span><span class="g"></span></div>
+  <div class="hero-inner">
+    <div>
+      <div class="eyebrow">🎉 1 – 15 August 2026</div>
+      <h1><span class="hi">AZAADI</span><br><span class="lo">KI DAUD</span></h1>
+      <div class="hero-sub">Independence Day Running Challenge</div>
+      <div class="hero-desc">Fifteen days. Two paths. One finish line. Log every kilometre, watch the community wheel turn, and cross into 15th August together. 🇮🇳</div>
+      <div class="hero-ctas">
+        <button class="btn btn-primary" onclick="document.getElementById('log').scrollIntoView({behavior:'smooth'})">Log Today's Run</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('leaderboard').scrollIntoView({behavior:'smooth'})">View Leaderboard</button>
+      </div>
+    </div>
+    <div class="chakra-wrap">
+      <div class="chakra">
+        <svg viewBox="0 0 200 200" id="heroChakra"></svg>
+        <div class="chakra-center">
+          <div class="chakra-pct" id="heroPct">0%</div>
+          <div class="chakra-label" id="heroDay">Loading…</div>
+        </div>
+      </div>
+      <div class="chakra-caption" id="heroCaption">Community progress toward the collective goal</div>
+    </div>
+  </div>
+</header>
+
+<section class="section" id="categories">
+  <div class="section-head">
+    <div class="kicker">Choose your category</div>
+    <h2>Two paths, one Azaadi</h2>
+  </div>
+  <div class="cat-grid">
+    <div class="cat-card cat-inter">
+      <div class="cat-tag">🌱 OPTION 1</div>
+      <div class="cat-goal">30 KM across 15 days</div>
+      <ul class="cat-rules">
+        <li>Distribute freely across 1–15 August</li>
+        <li>Minimum 2 KM every day — mandatory, no zero days</li>
+        <li>Run, jog, or walk — consistency over speed</li>
+      </ul>
+    </div>
+    <div class="cat-card cat-pro">
+      <div class="cat-tag">🔥 OPTION 2</div>
+      <div class="cat-goal">120 KM across 15 days, in 3 blocks</div>
+      <div class="blocks">
+        <div class="block-row"><span>Block 1 · 1–5 Aug</span><b>15 KM</b></div>
+        <div class="block-row"><span>Block 2 · 6–10 Aug</span><b>40 KM · cum. 55</b></div>
+        <div class="block-row"><span>Block 3 · 11–15 Aug</span><b>65 KM · cum. 120 🇮🇳</b></div>
+      </div>
+      <ul class="cat-rules">
+        <li>Free distribution within each block</li>
+        <li>Minimum 2 KM every day — mandatory, no zero days</li>
+      </ul>
+      <div class="flag-tip">💡 Save your longest run of Block 3 for 15th August — your flagship finish.</div>
+    </div>
+  </div>
+
+  <div class="rules-strip">
+    <h3>RULES — BOTH CATEGORIES</h3>
+    <div class="rules-cols">
+      <div>Pick <b>one</b> category and stick to it</div>
+      <div>Splits up to 10 KM → <b>max 2 loops</b></div>
+      <div><b>2 KM minimum, every day</b> — no zero days</div>
+      <div>Splits above 10 KM → <b>max 3 loops</b></div>
+      <div>Run / jog / walk — consistency beats speed</div>
+      <div>Share your daily activity screenshot</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="log">
+  <div class="section-head">
+    <div class="kicker">Track today</div>
+    <h2>Log your run</h2>
+  </div>
+  <div class="form-card">
+    <div class="form-grid">
+      <div class="field">
+        <label for="fCategory">Category</label>
+        <select id="fCategory" onchange="populateNameSelect()">
+          <option value="Option 1">Option 1 — 30 KM</option>
+          <option value="Option 2">Option 2 — 120 KM</option>
+        </select>
+        <div class="field-error" id="errCategory"></div>
+      </div>
+      <div class="field">
+        <label for="fNameSelect">Your name</label>
+        <select id="fNameSelect" onchange="toggleNewNameInput()">
+          <option value="__new__">+ New runner (first time logging)</option>
+        </select>
+        <input id="fNameNew" type="text" placeholder="Type your name" autocomplete="off" style="margin-top:8px;">
+        <div class="field-error" id="errName"></div>
+      </div>
+      <div class="field">
+        <label for="fDate">Date</label>
+        <input id="fDate" type="date" min="2026-08-01" max="2026-08-15">
+        <div class="field-error" id="errDate"></div>
+      </div>
+      <div class="field">
+        <label for="fDistance">Distance (km)</label>
+        <input id="fDistance" type="number" min="2" step="0.1" placeholder="Minimum 2 km">
+        <div class="field-error" id="errDistance"></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="submitBtn" onclick="submitEntry()">Save today's run</button>
+        <span class="form-msg" id="formMsg"></span>
+      </div>
+      <div class="privacy-note">Your name, category, and daily distances are stored on a shared board visible to everyone in Flying Runners — that's what powers the public leaderboard below.</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="leaderboard">
+  <div class="section-head">
+    <div class="kicker">Live standings</div>
+    <h2>Leaderboard</h2>
+  </div>
+  <div class="tabs">
+    <button class="tab active inter" id="tabInter" onclick="switchTab('Option 1')">🌱 Option 1</button>
+    <button class="tab pro" id="tabPro" onclick="switchTab('Option 2')">🔥 Option 2</button>
+  </div>
+  <div class="board" id="boardWrap">
+    <div class="board-row head">
+      <span>Rank</span><span>Runner</span><span></span><span>Total</span><span>Days</span><span>Status</span>
+    </div>
+    <div id="boardBody"><div class="empty-state">Loading leaderboard…</div></div>
+  </div>
+</section>
+
+<footer>
+  <svg viewBox="0 0 400 400" style="width:64px;height:64px;margin:0 auto 14px;display:block">
+  <defs>
+    <path id="topArc3Foot" d="M 70,150 A 145,145 0 0 1 330,150" fill="none"/>
+    <path id="bottomArc3Foot" d="M 75,250 A 140,140 0 0 0 325,250" fill="none"/>
+    <linearGradient id="wingGrad3Foot" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#B8005F"/>
+      <stop offset="100%" stop-color="#FF3D9A"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="200" cy="200" r="190" fill="#0A0A10"/>
+  <circle cx="200" cy="200" r="182" fill="none" stroke="#FF2D8C" stroke-width="4"/>
+  <circle cx="200" cy="200" r="171" fill="none" stroke="#FF2D8C" stroke-width="1.5"/>
+
+  <text font-family="Arial, sans-serif" font-size="13.5" font-weight="700" fill="#ffffff" letter-spacing="1.8">
+    <textPath href="#topArc3Foot" startOffset="50%" text-anchor="middle">RUN TOGETHER &#8226; RISE TOGETHER</textPath>
+  </text>
+  <text font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#ffffff" letter-spacing="1.6">
+    <textPath href="#bottomArc3Foot" startOffset="50%" text-anchor="middle">FITNESS &#8226; FRIENDSHIP &#8226; FAMILY</textPath>
+  </text>
+
+  <!-- Wing: simple symmetric leaf/teardrop, rotated for a dynamic tilt -->
+  <g transform="translate(128,178) rotate(-18)">
+    <path d="M 0,-46
+             C 26,-40 40,-14 34,14
+             C 30,34 12,48 0,58
+             C -12,48 -30,34 -34,14
+             C -40,-14 -26,-40 0,-46 Z"
+          fill="url(#wingGrad3)"/>
+    <path d="M 0,-46 C 4,-10 4,25 0,58" stroke="#7a0048" stroke-width="1.4" fill="none" opacity="0.55"/>
+    <path d="M 0,-30 C 14,-22 22,-4 18,10" stroke="#7a0048" stroke-width="1" fill="none" opacity="0.45"/>
+    <path d="M 0,-30 C -14,-22 -22,-4 -18,10" stroke="#7a0048" stroke-width="1" fill="none" opacity="0.45"/>
+  </g>
+
+  <!-- Runner template: anatomical stick figure with capsule limbs -->
+  <g id="runnerTpl3Foot" stroke-linecap="round">
+    <line x1="6" y1="-28" x2="20" y2="-14" stroke-width="6"/>
+    <line x1="20" y1="-14" x2="15" y2="5" stroke-width="5"/>
+    <line x1="0" y1="0" x2="-14" y2="18" stroke-width="9"/>
+    <line x1="-14" y1="18" x2="-30" y2="33" stroke-width="7"/>
+    <line x1="0" y1="0" x2="6" y2="-28" stroke-width="11"/>
+    <line x1="0" y1="0" x2="16" y2="-6" stroke-width="9"/>
+    <line x1="16" y1="-6" x2="9" y2="25" stroke-width="7"/>
+    <line x1="6" y1="-28" x2="-9" y2="-17" stroke-width="6"/>
+    <line x1="-9" y1="-17" x2="-21" y2="-7" stroke-width="5"/>
+    <circle cx="9" cy="-38" r="8" stroke="none"/>
+  </g>
+
+  <use href="#runnerTpl3Foot" stroke="#8B909E" fill="#8B909E" transform="translate(168,232) scale(1.3)"/>
+  <use href="#runnerTpl3Foot" stroke="#D7DAE2" fill="#D7DAE2" transform="translate(198,228) scale(1.45)"/>
+  <use href="#runnerTpl3Foot" stroke="#FF2D8C" fill="#FF2D8C" transform="translate(232,224) scale(1.6)"/>
+
+  <text x="200" y="298" font-family="Arial, sans-serif" font-size="30" font-weight="300"
+        fill="#ffffff" text-anchor="middle" letter-spacing="7">FLYING</text>
+  <text x="200" y="333" font-family="Arial, sans-serif" font-size="32" font-weight="800"
+        fill="#ffffff" text-anchor="middle" letter-spacing="2">RUNNERS</text>
+</svg>
+  <div class="foot-title">FLYING RUNNERS</div>
+  <div class="foot-sub">Every km counts toward Azaadi. Let's finish together on 15th August 🇮🇳</div>
+</footer>
+
+<script>
+const GOALS = { 'Option 1': 30, 'Option 2': 120 };
+const START = new Date('2026-08-01T00:00:00');
+const END = new Date('2026-08-15T00:00:00');
+let currentTab = 'Option 1';
+let cachedParticipants = [];
+
+function slugify(name){
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+}
+
+function ringSVG(pct, size, strokeW, colorA, colorB, trackColor){
+  const r = (size/2) - strokeW;
+  const c = size/2;
+  const circumference = 2*Math.PI*r;
+  const spokes = 24;
+  let spokeLines = '';
+  for(let i=0;i<spokes;i++){
+    const angle = (i/spokes) * 2*Math.PI;
+    const x1 = c + (r-strokeW/2) * Math.cos(angle);
+    const y1 = c + (r-strokeW/2) * Math.sin(angle);
+    const x2 = c + (r+strokeW/2) * Math.cos(angle);
+    const y2 = c + (r+strokeW/2) * Math.sin(angle);
+    spokeLines += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${trackColor}" stroke-width="1" opacity="0.5"/>`;
+  }
+  const dash = circumference * Math.min(pct,100)/100;
+  return `
+    <defs>
+      <linearGradient id="grad-${size}-${strokeW}" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${colorA}"/>
+        <stop offset="100%" stop-color="${colorB}"/>
+      </linearGradient>
+    </defs>
+    <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${trackColor}" stroke-width="${strokeW}" opacity="0.25"/>
+    ${spokeLines}
+    <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="url(#grad-${size}-${strokeW})"
+      stroke-width="${strokeW}" stroke-linecap="round"
+      stroke-dasharray="${dash} ${circumference}"/>
+  `;
+}
+
+function dayLabel(){
+  const now = new Date();
+  if(now < START){
+    const days = Math.ceil((START-now)/86400000);
+    return `Starts in ${days}d`;
+  }
+  if(now > END) return 'Challenge complete';
+  const dayNum = Math.floor((now-START)/86400000)+1;
+  return `Day ${dayNum} of 15`;
+}
+
+async function fetchAllParticipants(){
+  try{
+    const listRes = await window.storage.list('azaadi:participant:', true);
+    const keys = (listRes && listRes.keys) || [];
+    const results = [];
+    for(const k of keys){
+      try{
+        const res = await window.storage.get(k, true);
+        if(res && res.value) results.push(JSON.parse(res.value));
+      }catch(e){ /* skip unreadable entry */ }
+    }
+    return results;
+  }catch(e){
+    return [];
+  }
+}
+
+function computeStats(p){
+  const logs = p.logs || {};
+  const values = Object.values(logs);
+  const total = Math.round(values.reduce((a,b)=>a+b,0)*100)/100;
+  const days = Object.keys(logs).length;
+  const compliant = values.every(v=>v>=1.999);
+  const goal = GOALS[p.category] || 30;
+  const pct = Math.min(100, Math.round((total/goal)*100));
+  return {...p, total, days, compliant, pct, goal};
+}
+
+async function renderHero(){
+  const participants = await fetchAllParticipants();
+  cachedParticipants = participants;
+  let totalLogged = 0, totalGoal = 0;
+  participants.forEach(p=>{
+    const s = computeStats(p);
+    totalLogged += s.total;
+    totalGoal += s.goal;
+  });
+  const pct = totalGoal > 0 ? Math.min(100, Math.round((totalLogged/totalGoal)*100)) : 0;
+  document.getElementById('heroChakra').innerHTML = ringSVG(pct, 200, 10, '#FF9933', '#138808', '#ffffff');
+  document.getElementById('heroPct').textContent = pct + '%';
+  document.getElementById('heroDay').textContent = dayLabel();
+  document.getElementById('heroCaption').textContent =
+    totalGoal>0 ? `${totalLogged.toFixed(1)} km of ${totalGoal} km collective goal logged`
+                : 'Be the first to log a run and start the wheel turning';
+}
+
+function badgeFor(rank){
+  if(rank===1) return '🥇';
+  if(rank===2) return '🥈';
+  if(rank===3) return '🥉';
+  return '';
+}
+
+function renderBoard(){
+  const filtered = cachedParticipants
+    .filter(p=>p.category===currentTab)
+    .map(computeStats)
+    .sort((a,b)=>b.total-a.total);
+
+  const body = document.getElementById('boardBody');
+  if(filtered.length===0){
+    body.innerHTML = `<div class="empty-state">No ${currentTab} runs logged yet — be the first! 🏃</div>`;
+    return;
+  }
+  body.innerHTML = filtered.map((p,i)=>{
+    const rank = i+1;
+    const rankClass = rank===1?'g':rank===2?'s':rank===3?'b':'';
+    const ring = ringSVG(p.pct, 38, 4, currentTab==='Option 2'?'#FF9933':'#138808', currentTab==='Option 2'?'#E8590C':'#0B5D0B', '#e3e2dc');
+    return `
+      <div class="board-row">
+        <span class="rank ${rankClass}">${rank}</span>
+        <span class="runner-name">${escapeHtml(p.name)}<span class="runner-badge">${badgeFor(rank)}</span></span>
+        <svg class="mini-ring" viewBox="0 0 38 38">${ring}</svg>
+        <span class="stat">${p.total.toFixed(1)} / ${p.goal} km</span>
+        <span class="stat days">${p.days} days</span>
+        <span class="${p.compliant?'status-ok':'status-warn'} status-col">${p.compliant?'On pace':'Below 2km/day'}</span>
+      </div>`;
+  }).join('');
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function switchTab(cat){
+  currentTab = cat;
+  document.getElementById('tabInter').classList.toggle('active', cat==='Option 1');
+  document.getElementById('tabPro').classList.toggle('active', cat==='Option 2');
+  renderBoard();
+}
+
+function findExisting(name){
+  const slug = slugify(name);
+  if(!slug) return null;
+  return cachedParticipants.find(p => slugify(p.name) === slug) || null;
+}
+
+function populateNameSelect(){
+  const category = document.getElementById('fCategory').value;
+  const select = document.getElementById('fNameSelect');
+  const names = cachedParticipants
+    .filter(p => p.category === category)
+    .map(p => p.name)
+    .sort((a,b)=>a.localeCompare(b));
+
+  select.innerHTML = '<option value="__new__">+ New runner (first time logging)</option>' +
+    names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+
+  toggleNewNameInput();
+}
+
+function toggleNewNameInput(){
+  const isNew = document.getElementById('fNameSelect').value === '__new__';
+  const newInput = document.getElementById('fNameNew');
+  newInput.style.display = isNew ? '' : 'none';
+  if(!isNew) newInput.value = '';
+}
+
+function clearErrors(){
+  ['errName','errCategory','errDate','errDistance'].forEach(id=>document.getElementById(id).textContent='');
+  document.getElementById('formMsg').textContent='';
+  document.getElementById('formMsg').className='form-msg';
+}
+
+async function submitEntry(){
+  clearErrors();
+  const category = document.getElementById('fCategory').value;
+  const nameSelectVal = document.getElementById('fNameSelect').value;
+  const isNew = nameSelectVal === '__new__';
+  const name = isNew ? document.getElementById('fNameNew').value.trim() : nameSelectVal;
+  const date = document.getElementById('fDate').value;
+  const distance = parseFloat(document.getElementById('fDistance').value);
+
+  let hasError = false;
+  if(!name){ document.getElementById('errName').textContent = isNew ? 'Type your name.' : 'Choose your name.'; hasError = true; }
+  if(!date){ document.getElementById('errDate').textContent = 'Pick a date between 1–15 Aug.'; hasError = true; }
+  else if(date < '2026-08-01' || date > '2026-08-15'){
+    document.getElementById('errDate').textContent = 'Date must be within 1–15 August 2026.'; hasError = true;
+  }
+  if(isNaN(distance)){ document.getElementById('errDistance').textContent = 'Enter a distance.'; hasError = true; }
+  else if(distance < 2){ document.getElementById('errDistance').textContent = 'Minimum 2 km required per day.'; hasError = true; }
+
+  // A new runner's name must not already be registered under the OTHER category —
+  // that would silently split one person into two leaderboard entries.
+  if(!hasError && isNew){
+    const clash = findExisting(name);
+    if(clash && clash.category !== category){
+      document.getElementById('errName').textContent =
+        `"${name}" is already registered under ${clash.category}. Switch category above, then pick your name from the list.`;
+      hasError = true;
+    }
+  }
+
+  if(hasError) return;
+
+  const submitBtn = document.getElementById('submitBtn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Saving…';
+
+  try{
+    const slug = slugify(name);
+    const key = 'azaadi:participant:' + slug;
+    let existing = null;
+    try{
+      const res = await window.storage.get(key, true);
+      if(res && res.value) existing = JSON.parse(res.value);
+    }catch(e){ existing = null; }
+
+    // Category is set only once, on a runner's first-ever entry, and can never
+    // change after that — the name dropdown is filtered by category so returning
+    // runners can only ever pick a name already tied to that same category.
+    const participant = existing || { name, category, logs: {} };
+    participant.name = name;
+    if(!existing){ participant.category = category; }
+    participant.logs = participant.logs || {};
+    participant.logs[date] = distance;
+
+    const saveRes = await window.storage.set(key, JSON.stringify(participant), true);
+    if(!saveRes) throw new Error('Save failed');
+
+    const msg = document.getElementById('formMsg');
+    msg.textContent = `Saved! ${name}'s ${date} run of ${distance} km is on the board.`;
+    msg.className = 'form-msg ok';
+    document.getElementById('fDistance').value = '';
+
+    await renderHero();
+    populateNameSelect();
+    document.getElementById('fNameSelect').value = slug === slugify(name) ? name : '__new__';
+    toggleNewNameInput();
+    switchTab(participant.category);
+  }catch(e){
+    const msg = document.getElementById('formMsg');
+    msg.textContent = 'Could not save your run — please try again.';
+    msg.className = 'form-msg err';
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Save today's run";
+  }
+}
+
+(async function init(){
+  const dateField = document.getElementById('fDate');
+  const today = new Date();
+  const iso = today.toISOString().slice(0,10);
+  dateField.value = (iso >= '2026-08-01' && iso <= '2026-08-15') ? iso : '2026-08-01';
+
+  await renderHero();
+  populateNameSelect();
+  renderBoard();
+})();
+</script>
+</body>
+</html>
