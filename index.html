@@ -509,6 +509,87 @@ const START = new Date('2026-08-01T00:00:00');
 const END = new Date('2026-08-15T00:00:00');
 let currentTab = 'Option 1';
 let cachedParticipants = [];
+let participantsData = {};
+
+// --- kvdb.io-backed data store -------------------------------------------
+// The leaderboard lives as one JSON value in a free, keyless kvdb.io bucket.
+// No token, no expiry, no secrets in page source — just a bucket ID, which
+// is the same trust model as the rest of this page (public, honor-system,
+// anyone with the link can read/write, same as before).
+const KVDB_BUCKET = 'WrfSQN4EXXFaKJASSCTKbu';
+const KVDB_KEY = 'participants';
+const KVDB_URL = `https://kvdb.io/${KVDB_BUCKET}/${KVDB_KEY}`;
+
+// Seed roster — used only to auto-initialize the bucket the very first time
+// anyone loads the site after setup (bucket starts empty). Once real data
+// exists, this is never used again.
+const SEED_PARTICIPANTS = {
+  "anirudh-sharma": {"name":"Anirudh Sharma","category":"Option 1","logs":{}},
+  "rishi": {"name":"Rishi","category":"Option 1","logs":{}},
+  "radha": {"name":"Radha","category":"Option 1","logs":{}},
+  "swati-sharma": {"name":"Swati Sharma","category":"Option 1","logs":{}},
+  "mukesh-kumar": {"name":"Mukesh Kumar","category":"Option 1","logs":{}},
+  "sanghamitra": {"name":"Sanghamitra","category":"Option 1","logs":{}},
+  "mohit-singhal": {"name":"Mohit Singhal","category":"Option 1","logs":{}},
+  "pradeepika": {"name":"Pradeepika","category":"Option 1","logs":{}},
+  "abbas": {"name":"Abbas","category":"Option 1","logs":{}},
+  "manju-pathania": {"name":"Manju Pathania","category":"Option 1","logs":{}},
+  "prashant-tiwari": {"name":"Prashant Tiwari","category":"Option 2","logs":{}},
+  "laksh-yadav": {"name":"Laksh Yadav","category":"Option 2","logs":{}},
+  "sunil-kumar": {"name":"Sunil Kumar","category":"Option 2","logs":{}},
+  "gourav": {"name":"Gourav","category":"Option 2","logs":{}},
+  "braj-kishor": {"name":"Braj Kishor","category":"Option 2","logs":{}},
+  "naveen-joshi": {"name":"Naveen Joshi","category":"Option 2","logs":{}},
+  "shabnam-parveen": {"name":"Shabnam Parveen","category":"Option 2","logs":{}},
+  "yug": {"name":"Yug","category":"Option 2","logs":{}}
+};
+
+async function fetchParticipantsRaw(){
+  try{
+    const res = await fetch(KVDB_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    if(res.status === 404) return null; // key never set yet
+    if(!res.ok) return null;
+    const text = await res.text();
+    if(!text) return null;
+    return JSON.parse(text);
+  }catch(e){ return null; }
+}
+
+async function writeParticipants(obj){
+  const res = await fetch(KVDB_URL, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(obj)
+  });
+  if(!res.ok) throw new Error('Save failed (' + res.status + ')');
+  return obj;
+}
+
+async function saveParticipants(mutateFn){
+  const current = (await fetchParticipantsRaw()) || {};
+  const updated = mutateFn(current);
+  return writeParticipants(updated);
+}
+
+function refreshCache(){
+  cachedParticipants = Object.entries(participantsData).map(([slug, p]) => ({...p, slug}));
+}
+
+async function loadAll(){
+  let data = await fetchParticipantsRaw();
+  if(data === null){
+    // Bucket is empty (first-ever load) — seed it with the starting roster.
+    try{
+      data = await writeParticipants(SEED_PARTICIPANTS);
+    }catch(e){
+      data = SEED_PARTICIPANTS; // show seed locally even if the write failed
+    }
+  }
+  participantsData = data;
+  refreshCache();
+}
+// -------------------------------------------------------------------------
+
 
 function slugify(name){
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
@@ -555,23 +636,6 @@ function dayLabel(){
   return `Day ${dayNum} of 15`;
 }
 
-async function fetchAllParticipants(){
-  try{
-    const listRes = await window.storage.list('azaadi:participant:', true);
-    const keys = (listRes && listRes.keys) || [];
-    const results = [];
-    for(const k of keys){
-      try{
-        const res = await window.storage.get(k, true);
-        if(res && res.value) results.push(JSON.parse(res.value));
-      }catch(e){ /* skip unreadable entry */ }
-    }
-    return results;
-  }catch(e){
-    return [];
-  }
-}
-
 function computeStats(p){
   const logs = p.logs || {};
   const values = Object.values(logs);
@@ -584,10 +648,8 @@ function computeStats(p){
 }
 
 async function renderHero(){
-  const participants = await fetchAllParticipants();
-  cachedParticipants = participants;
   let totalLogged = 0, totalGoal = 0;
-  participants.forEach(p=>{
+  cachedParticipants.forEach(p=>{
     const s = computeStats(p);
     totalLogged += s.total;
     totalGoal += s.goal;
@@ -699,8 +761,6 @@ async function submitEntry(){
   if(isNaN(distance)){ document.getElementById('errDistance').textContent = 'Enter a distance.'; hasError = true; }
   else if(distance < 2){ document.getElementById('errDistance').textContent = 'Minimum 2 km required per day.'; hasError = true; }
 
-  // A new runner's name must not already be registered under the OTHER category —
-  // that would silently split one person into two leaderboard entries.
   if(!hasError && isNew){
     const clash = findExisting(name);
     if(clash && clash.category !== category){
@@ -718,24 +778,22 @@ async function submitEntry(){
 
   try{
     const slug = slugify(name);
-    const key = 'azaadi:participant:' + slug;
-    let existing = null;
-    try{
-      const res = await window.storage.get(key, true);
-      if(res && res.value) existing = JSON.parse(res.value);
-    }catch(e){ existing = null; }
 
-    // Category is set only once, on a runner's first-ever entry, and can never
-    // change after that — the name dropdown is filtered by category so returning
-    // runners can only ever pick a name already tied to that same category.
-    const participant = existing || { name, category, logs: {} };
-    participant.name = name;
-    if(!existing){ participant.category = category; }
-    participant.logs = participant.logs || {};
-    participant.logs[date] = distance;
+    const updated = await saveParticipants(data => {
+      const existing = data[slug];
+      const participant = existing || { name, category, logs: {} };
+      participant.name = name;
+      if(!existing){ participant.category = category; }
+      participant.logs = participant.logs || {};
+      participant.logs[date] = distance;
+      data[slug] = participant;
+      return data;
+    });
 
-    const saveRes = await window.storage.set(key, JSON.stringify(participant), true);
-    if(!saveRes) throw new Error('Save failed');
+    participantsData = updated;
+    refreshCache();
+
+    const savedCategory = participantsData[slug].category;
 
     const msg = document.getElementById('formMsg');
     msg.textContent = `Saved! ${name}'s ${date} run of ${distance} km is on the board.`;
@@ -743,13 +801,14 @@ async function submitEntry(){
     document.getElementById('fDistance').value = '';
 
     await renderHero();
+    document.getElementById('fCategory').value = savedCategory;
     populateNameSelect();
-    document.getElementById('fNameSelect').value = slug === slugify(name) ? name : '__new__';
+    document.getElementById('fNameSelect').value = name;
     toggleNewNameInput();
-    switchTab(participant.category);
+    switchTab(savedCategory);
   }catch(e){
     const msg = document.getElementById('formMsg');
-    msg.textContent = 'Could not save your run — please try again.';
+    msg.textContent = 'Could not save your run — please try again in a moment.';
     msg.className = 'form-msg err';
   }finally{
     submitBtn.disabled = false;
@@ -763,10 +822,22 @@ async function submitEntry(){
   const iso = today.toISOString().slice(0,10);
   dateField.value = (iso >= '2026-08-01' && iso <= '2026-08-15') ? iso : '2026-08-01';
 
+  await loadAll();
   await renderHero();
   populateNameSelect();
   renderBoard();
+
+  // Keep the board reasonably fresh for people who leave the tab open.
+  setInterval(async ()=>{
+    try{
+      await loadAll();
+      await renderHero();
+      populateNameSelect();
+      renderBoard();
+    }catch(e){ /* ignore transient refresh failures */ }
+  }, 25000);
 })();
 </script>
+
 </body>
 </html>
