@@ -62,7 +62,11 @@ function copyCode(){
 
 (async function setup(){
   try{
-    const res = await fetch('https://kvdb.io/', { method: 'POST' });
+    const res = await fetch('https://kvdb.io/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'email=flyingrunners.azaadi@gmail.com'
+    });
     if(!res.ok) throw new Error('Request failed: ' + res.status);
     const bucketId = (await res.text()).trim();
     generatedCode = bucketId;
