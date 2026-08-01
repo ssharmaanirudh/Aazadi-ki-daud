@@ -565,7 +565,7 @@ async function fetchParticipantsRaw(){
 
 async function writeParticipants(obj){
   const res = await fetch(KVDB_URL, {
-    method: 'PUT',
+    method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(obj)
   });
