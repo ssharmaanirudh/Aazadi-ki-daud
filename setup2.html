@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Setup v2 — Azaadi Ki Daud</title>
+<style>
+  body{ margin:0; background:#0A1128; color:#fff; font-family:-apple-system,sans-serif; padding:20px; }
+  h1{ font-size:18px; }
+  .step{ background:#141B34; border-radius:12px; padding:16px; margin-bottom:14px; border:1px solid rgba(255,255,255,0.1); }
+  .label{ font-size:12px; color:#8f95ac; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; }
+  .ok{ color:#4ade80; } .fail{ color:#ff6b6b; } .pending{ color:#FFD60A; }
+  pre{ white-space:pre-wrap; word-break:break-all; font-size:12px; background:#0A1128; padding:10px; border-radius:8px; margin:8px 0 0; }
+  .code-box{
+    margin-top:10px; padding:16px; background:#0A1128; border-radius:10px;
+    border:2px dashed #FF9933; font-size:18px; font-weight:700;
+    word-break:break-all; font-family:monospace; color:#FFD60A;
+  }
+  .copy-btn{
+    margin-top:14px; padding:10px 22px; border-radius:8px; border:none;
+    background:#FF9933; color:#1a0d00; font-weight:700; font-size:14px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+  <h1>🔍 Setting up storage (attempt 2 — jsonblob.com, no email needed)</h1>
+  <p style="color:#aeb4c8;font-size:13px;">This runs automatically. Wait for all steps, then screenshot this page and send it back regardless of pass/fail.</p>
+  <div id="steps"></div>
+
+<script>
+const stepsEl = document.getElementById('steps');
+function addStep(label){
+  const div = document.createElement('div');
+  div.className = 'step';
+  div.innerHTML = `<div class="label">${label}</div><div class="pending">Running…</div>`;
+  stepsEl.appendChild(div);
+  return div;
+}
+function finish(div, ok, text){
+  div.innerHTML = `<div class="label">${div.querySelector('.label').textContent}</div><div class="${ok?'ok':'fail'}">${ok?'✅ OK':'❌ FAILED'}</div><pre>${text}</pre>`;
+}
+let generatedCode = '';
+function copyCode(){
+  navigator.clipboard.writeText(generatedCode).then(()=>{
+    document.getElementById('copyStatus').textContent = 'Copied! Paste it in the chat.';
+  }).catch(()=>{});
+}
+
+(async function run(){
+  let blobId = null;
+
+  // Step 1: create a blob
+  let s1 = addStep('1. Create storage blob');
+  try{
+    const res = await fetch('https://jsonblob.com/api/jsonBlob', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ init: true })
+    });
+    const location = res.headers.get('Location') || res.headers.get('location') || '(header not exposed)';
+    const bodyText = await res.text().catch(()=> '(no body)');
+    // Try to extract ID from Location header
+    if(location && location.includes('/')){
+      blobId = location.split('/').filter(Boolean).pop();
+    }
+    finish(s1, res.ok, 'status: ' + res.status + '\nLocation header: ' + location + '\nbody: ' + bodyText.slice(0,200) + '\nresponse.url: ' + res.url);
+  }catch(e){
+    finish(s1, false, 'THREW: ' + e.message);
+  }
+
+  if(!blobId){
+    const s1b = addStep('1b. Fallback — locate blob another way');
+    finish(s1b, false, 'Could not read blob ID from Location header (likely hidden by CORS). Trying response.url instead was already attempted above — check step 1 details.');
+  }
+
+  // Step 2: write real data to it
+  let s2 = addStep('2. Write test data to the blob');
+  if(blobId){
+    try{
+      const res = await fetch('https://jsonblob.com/api/jsonBlob/' + blobId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ test: 'hello-' + Date.now() })
+      });
+      const text = await res.text().catch(()=> '(no body)');
+      finish(s2, res.ok, 'status: ' + res.status + '\n' + text.slice(0,300));
+    }catch(e){
+      finish(s2, false, 'THREW: ' + e.message);
+    }
+  } else {
+    finish(s2, false, 'Skipped — no blob ID available from step 1.');
+  }
+
+  // Step 3: read it back
+  let s3 = addStep('3. Read the data back');
+  if(blobId){
+    try{
+      const res = await fetch('https://jsonblob.com/api/jsonBlob/' + blobId + '?t=' + Date.now(), { cache: 'no-store' });
+      const text = await res.text().catch(()=> '(no body)');
+      finish(s3, res.ok, 'status: ' + res.status + '\n' + text.slice(0,300));
+    }catch(e){
+      finish(s3, false, 'THREW: ' + e.message);
+    }
+  } else {
+    finish(s3, false, 'Skipped — no blob ID available.');
+  }
+
+  if(blobId){
+    const summary = document.createElement('div');
+    summary.className = 'step';
+    generatedCode = blobId;
+    summary.innerHTML = '<div class="label">Blob ID (send this to Claude)</div><div class="code-box">' + blobId + '</div>' +
+      '<button class="copy-btn" onclick="copyCode()">Copy code</button><div id="copyStatus" style="margin-top:8px;font-size:12px;color:#8f95ac;"></div>';
+    stepsEl.appendChild(summary);
+  }
+})();
+</script>
+</body>
+</html>
