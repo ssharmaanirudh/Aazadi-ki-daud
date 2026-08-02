@@ -36,9 +36,13 @@
 <body>
   <div class="card">
     <h1>🇮🇳 Setting up the leaderboard</h1>
-    <p>This runs automatically — just wait a moment, then send Claude the code that appears below.</p>
-    <div id="loading"><div class="spinner"></div></div>
+    <p>Enter an email you can check right now. kvdb.io will send a one-time verification link — click it, then come back here.</p>
+    <input id="emailInput" type="email" placeholder="you@example.com"
+      style="width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#0A1128;color:#fff;font-size:14px;box-sizing:border-box;margin-top:12px;">
+    <button class="copy-btn" style="margin-top:14px;width:100%;" onclick="createBucket()">Create storage</button>
+    <div id="loading" style="display:none;margin-top:20px;"><div class="spinner"></div></div>
     <div id="result" style="display:none;">
+      <p style="margin-top:20px;color:#4ade80;font-size:13px;">✅ Check your email and click the verification link now. Once you've clicked it, come back and copy this code:</p>
       <div class="code-box" id="codeDisplay"></div>
       <button class="copy-btn" onclick="copyCode()">Copy code</button>
       <div class="status" id="copyStatus"></div>
@@ -60,12 +64,18 @@ function copyCode(){
   });
 }
 
-(async function setup(){
+async function createBucket(){
+  const email = document.getElementById('emailInput').value.trim();
+  if(!email || !email.includes('@')){
+    alert('Please enter a valid email address.');
+    return;
+  }
+  document.getElementById('loading').style.display = 'block';
   try{
     const res = await fetch('https://kvdb.io/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'email=flyingrunners.azaadi@gmail.com'
+      body: 'email=' + encodeURIComponent(email)
     });
     if(!res.ok) throw new Error('Request failed: ' + res.status);
     const bucketId = (await res.text()).trim();
@@ -78,7 +88,7 @@ function copyCode(){
     document.getElementById('errorBox').style.display = 'block';
     document.getElementById('errorDetail').textContent = String(e);
   }
-})();
+}
 </script>
 </body>
 </html>
