@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Data — Azaadi Ki Daud</title>
+<style>
+  body{ margin:0; background:#0A1128; color:#fff; font-family:-apple-system,sans-serif; padding:16px; }
+  h1{ font-size:16px; }
+  .card{ background:#141B34; border-radius:10px; padding:12px 14px; margin-bottom:10px; border:1px solid rgba(255,255,255,0.1); }
+  .name{ font-weight:700; font-size:14px; }
+  .cat{ font-size:11px; color:#8f95ac; text-transform:uppercase; }
+  table{ width:100%; border-collapse:collapse; margin-top:8px; font-size:12px; }
+  td{ padding:3px 6px; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .status{ color:#FFD60A; font-size:13px; margin-bottom:12px; }
+</style>
+</head>
+<body>
+  <h1>📋 Live leaderboard data (read-only)</h1>
+  <div class="status" id="status">Loading…</div>
+  <div id="out"></div>
+
+<script>
+const JSONBLOB_URL = 'https://jsonblob.com/api/jsonBlob/019fc0e9-793c-737f-a68a-aaa59f180a7f';
+
+(async function(){
+  const statusEl = document.getElementById('status');
+  const out = document.getElementById('out');
+  try{
+    const res = await fetch(JSONBLOB_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    statusEl.textContent = 'Fetch status: ' + res.status;
+    if(!res.ok){ statusEl.textContent += ' — could not load data.'; return; }
+    const data = await res.json();
+    const entries = Object.entries(data).sort((a,b)=> a[1].name.localeCompare(b[1].name));
+    statusEl.textContent = 'Loaded ' + entries.length + ' runners. Last checked: ' + new Date().toLocaleTimeString();
+    out.innerHTML = entries.map(([slug, p]) => {
+      const logRows = Object.entries(p.logs || {}).sort().map(([date,km]) =>
+        `<tr><td>${date}</td><td>${km} km</td></tr>`).join('') || '<tr><td colspan="2">No runs logged yet</td></tr>';
+      return `<div class="card">
+        <div class="name">${p.name}</div>
+        <div class="cat">${p.category} · slug: ${slug}</div>
+        <table>${logRows}</table>
+      </div>`;
+    }).join('');
+  }catch(e){
+    statusEl.textContent = 'Error: ' + e.message;
+  }
+})();
+</script>
+</body>
+</html>
