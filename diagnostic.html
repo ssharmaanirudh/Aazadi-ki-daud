@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnostic — Azaadi Ki Daud</title>
+<style>
+  body{ margin:0; background:#0A1128; color:#fff; font-family:-apple-system,sans-serif; padding:20px; }
+  h1{ font-size:18px; }
+  .step{ background:#141B34; border-radius:12px; padding:16px; margin-bottom:14px; border:1px solid rgba(255,255,255,0.1); }
+  .label{ font-size:12px; color:#8f95ac; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; }
+  .ok{ color:#4ade80; } .fail{ color:#ff6b6b; } .pending{ color:#FFD60A; }
+  pre{ white-space:pre-wrap; word-break:break-all; font-size:12px; background:#0A1128; padding:10px; border-radius:8px; margin:8px 0 0; }
+</style>
+</head>
+<body>
+  <h1>🔍 Leaderboard save diagnostic</h1>
+  <p style="color:#aeb4c8;font-size:13px;">Wait for all steps to finish, then screenshot this whole page.</p>
+  <div id="steps"></div>
+
+<script>
+const KVDB_BUCKET = 'WrfSQN4EXXFaKJASSCTKbu';
+const KVDB_KEY = 'participants';
+const KVDB_URL = `https://kvdb.io/${KVDB_BUCKET}/${KVDB_KEY}`;
+const TEST_KEY = 'diagnostic-test';
+const TEST_URL = `https://kvdb.io/${KVDB_BUCKET}/${TEST_KEY}`;
+
+const stepsEl = document.getElementById('steps');
+function addStep(label){
+  const div = document.createElement('div');
+  div.className = 'step';
+  div.innerHTML = `<div class="label">${label}</div><div class="pending">Running…</div>`;
+  stepsEl.appendChild(div);
+  return div;
+}
+function finish(div, ok, text){
+  div.innerHTML = `<div class="label">${div.querySelector('.label').textContent}</div><div class="${ok?'ok':'fail'}">${ok?'✅ OK':'❌ FAILED'}</div><pre>${text}</pre>`;
+}
+
+(async function run(){
+  // Step 1: read main participants key
+  let s1 = addStep('1. GET real participants data');
+  try{
+    const res = await fetch(KVDB_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    const text = await res.text();
+    finish(s1, res.ok || res.status===404, 'status: ' + res.status + '\n' + text.slice(0,400));
+  }catch(e){
+    finish(s1, false, 'THREW: ' + e.message);
+  }
+
+  // Step 2: write a small test value
+  let s2 = addStep('2. POST test write (method used by the real site)');
+  let writeWorked = false;
+  try{
+    const res = await fetch(TEST_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: 'hello-' + Date.now()
+    });
+    const text = await res.text().catch(()=> '(no body)');
+    writeWorked = res.ok;
+    finish(s2, res.ok, 'status: ' + res.status + '\n' + text.slice(0,400));
+  }catch(e){
+    finish(s2, false, 'THREW: ' + e.message);
+  }
+
+  // Step 3: read it back to confirm round-trip
+  let s3 = addStep('3. GET the test value back');
+  try{
+    const res = await fetch(TEST_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    const text = await res.text();
+    finish(s3, res.ok, 'status: ' + res.status + '\n' + text.slice(0,400));
+  }catch(e){
+    finish(s3, false, 'THREW: ' + e.message);
+  }
+
+  // Step 4: try alternate method (PUT) in case POST is the one blocked
+  let s4 = addStep('4. PUT test write (alternate method, for comparison)');
+  try{
+    const res = await fetch(TEST_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'text/plain' },
+      body: 'put-test-' + Date.now()
+    });
+    const text = await res.text().catch(()=> '(no body)');
+    finish(s4, res.ok, 'status: ' + res.status + '\n' + text.slice(0,400));
+  }catch(e){
+    finish(s4, false, 'THREW: ' + e.message);
+  }
+
+  const summary = document.createElement('div');
+  summary.className = 'step';
+  summary.innerHTML = '<div class="label">Summary</div><div>' +
+    (writeWorked ? '✅ Basic write works — the real save bug is likely something else (see steps above for clues).'
+                 : '❌ Even a simple test write failed — screenshot this page and send it back.') +
+    '</div>';
+  stepsEl.appendChild(summary);
+})();
+</script>
+</body>
+</html>
