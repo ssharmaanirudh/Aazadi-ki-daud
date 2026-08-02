@@ -511,18 +511,17 @@ let currentTab = 'Option 1';
 let cachedParticipants = [];
 let participantsData = {};
 
-// --- kvdb.io-backed data store -------------------------------------------
-// The leaderboard lives as one JSON value in a free, keyless kvdb.io bucket.
-// No token, no expiry, no secrets in page source — just a bucket ID, which
-// is the same trust model as the rest of this page (public, honor-system,
-// anyone with the link can read/write, same as before).
-const KVDB_BUCKET = 'Ng79Zq9LpApJZp1yY5m6oj';
-const KVDB_KEY = 'participants';
-const KVDB_URL = `https://kvdb.io/${KVDB_BUCKET}/${KVDB_KEY}`;
+// --- jsonblob.com-backed data store ---------------------------------------
+// The leaderboard lives as one JSON blob on jsonblob.com — free, no signup,
+// no email verification (unlike our first attempt with kvdb.io, which added
+// an email-verification requirement that broke this). Just a blob ID, same
+// public/honor-system trust model as the rest of this page.
+const JSONBLOB_ID = '019fc0e9-793c-737f-a68a-aaa59f180a7f';
+const JSONBLOB_URL = `https://jsonblob.com/api/jsonBlob/${JSONBLOB_ID}`;
 
-// Seed roster — used only to auto-initialize the bucket the very first time
-// anyone loads the site after setup (bucket starts empty). Once real data
-// exists, this is never used again.
+// Seed roster — used only to auto-initialize the blob the very first time
+// anyone loads the site after setup (blob starts as {init:true}). Once real
+// data exists, this is never used again.
 const SEED_PARTICIPANTS = {
   "anirudh-sharma": {"name":"Anirudh Sharma","category":"Option 1","logs":{}},
   "rishi": {"name":"Rishi","category":"Option 1","logs":{}},
@@ -544,7 +543,7 @@ const SEED_PARTICIPANTS = {
   "yug": {"name":"Yug","category":"Option 2","logs":{}}
 };
 
-// Names to add to whatever's already in the live bucket, without touching
+// Names to add to whatever's already in the live blob, without touching
 // existing data. Add an entry here any time someone new needs to be
 // pre-registered — it applies itself automatically the next time anyone
 // loads the page, then has no further effect once that name exists.
@@ -554,19 +553,19 @@ const PENDING_ADDITIONS = [
 
 async function fetchParticipantsRaw(){
   try{
-    const res = await fetch(KVDB_URL + '?t=' + Date.now(), { cache: 'no-store' });
-    if(res.status === 404) return null; // key never set yet
+    const res = await fetch(JSONBLOB_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    if(res.status === 404) return null;
     if(!res.ok) return null;
-    const text = await res.text();
-    if(!text) return null;
-    return JSON.parse(text);
+    const json = await res.json().catch(()=> null);
+    if(!json || json.init) return null; // still the placeholder blob
+    return json;
   }catch(e){ return null; }
 }
 
 async function writeParticipants(obj){
-  const res = await fetch(KVDB_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
+  const res = await fetch(JSONBLOB_URL, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(obj)
   });
   if(!res.ok) throw new Error('Save failed (' + res.status + ')');
