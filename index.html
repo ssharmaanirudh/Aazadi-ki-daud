@@ -478,14 +478,26 @@ async function writeParticipants(obj){
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(obj)
   });
-  if(!res.ok) throw new Error('Save failed (' + res.status + ')');
+  if(!res.ok){
+    const bodyText = await res.text().catch(()=> '');
+    throw new Error('status ' + res.status + (bodyText ? ': ' + bodyText.slice(0,150) : ''));
+  }
   return obj;
 }
 
-async function saveParticipants(mutateFn){
-  const current = (await fetchParticipantsRaw()) || {};
-  const updated = mutateFn(current);
-  return writeParticipants(updated);
+async function saveParticipants(mutateFn, attempt){
+  attempt = attempt || 0;
+  try{
+    const current = (await fetchParticipantsRaw()) || {};
+    const updated = mutateFn(current);
+    return await writeParticipants(updated);
+  }catch(e){
+    if(attempt < 2){
+      await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+      return saveParticipants(mutateFn, attempt + 1);
+    }
+    throw e;
+  }
 }
 
 function refreshCache(){
@@ -741,7 +753,7 @@ async function submitEntry(){
     switchTab(savedCategory);
   }catch(e){
     const msg = document.getElementById('formMsg');
-    msg.textContent = 'Could not save your run — please try again in a moment.';
+    msg.textContent = 'Could not save — ' + (e && e.message ? e.message : 'unknown error') + '. Please screenshot this and try again in a moment.';
     msg.className = 'form-msg err';
   }finally{
     submitBtn.disabled = false;
@@ -768,7 +780,7 @@ async function submitEntry(){
       populateNameSelect();
       renderBoard();
     }catch(e){ /* ignore transient refresh failures */ }
-  }, 25000);
+  }, 90000);
 })();
 </script>
 
