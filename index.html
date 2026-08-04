@@ -376,6 +376,7 @@
   <div class="tabs">
     <button class="tab active inter" id="tabInter" onclick="switchTab('Option 1')">🌱 Option 1</button>
     <button class="tab pro" id="tabPro" onclick="switchTab('Option 2')">🔥 Option 2</button>
+    <button class="tab" id="refreshBtn" onclick="manualRefresh()" style="margin-left:auto;">🔄 Refresh</button>
   </div>
   <div class="board" id="boardWrap">
     <div class="board-row head">
@@ -480,7 +481,9 @@ async function writeParticipants(obj){
   });
   if(!res.ok){
     const bodyText = await res.text().catch(()=> '');
-    throw new Error('status ' + res.status + (bodyText ? ': ' + bodyText.slice(0,150) : ''));
+    const err = new Error('status ' + res.status + (bodyText ? ': ' + bodyText.slice(0,150) : ''));
+    err.status = res.status;
+    throw err;
   }
   return obj;
 }
@@ -492,6 +495,17 @@ async function saveParticipants(mutateFn, attempt){
     const updated = mutateFn(current);
     return await writeParticipants(updated);
   }catch(e){
+    // Rate limits need real backoff, not a quick retry — retrying fast just
+    // adds another request into the same limited window and makes it worse.
+    if(e && e.status === 429){
+      if(attempt < 1){
+        await new Promise(r => setTimeout(r, 4000));
+        return saveParticipants(mutateFn, attempt + 1);
+      }
+      const friendly = new Error('Too many people saving at once — please wait about 30 seconds and try again.');
+      friendly.status = 429;
+      throw friendly;
+    }
     if(attempt < 2){
       await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
       return saveParticipants(mutateFn, attempt + 1);
@@ -655,6 +669,22 @@ function switchTab(cat){
   renderBoard();
 }
 
+async function manualRefresh(){
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Refreshing…';
+  try{
+    await loadAll();
+    await renderHero();
+    populateNameSelect();
+    renderBoard();
+  }catch(e){ /* ignore */ }
+  finally{
+    btn.disabled = false;
+    btn.textContent = '🔄 Refresh';
+  }
+}
+
 function findExisting(name){
   const slug = slugify(name);
   if(!slug) return null;
@@ -771,16 +801,9 @@ async function submitEntry(){
   await renderHero();
   populateNameSelect();
   renderBoard();
-
-  // Keep the board reasonably fresh for people who leave the tab open.
-  setInterval(async ()=>{
-    try{
-      await loadAll();
-      await renderHero();
-      populateNameSelect();
-      renderBoard();
-    }catch(e){ /* ignore transient refresh failures */ }
-  }, 90000);
+  // No background auto-refresh — every open tab silently polling was the
+  // main driver behind hitting the free storage service's rate limit.
+  // Data still refreshes on page load and immediately after every save.
 })();
 </script>
 
