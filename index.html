@@ -405,8 +405,14 @@ let participantsData = {};
 // no email verification (unlike our first attempt with kvdb.io, which added
 // an email-verification requirement that broke this). Just a blob ID, same
 // public/honor-system trust model as the rest of this page.
-const JSONBLOB_ID = '019fd7cd-0501-7c44-b210-a37e0b1aa2d7';
+const JSONBLOB_ID = '019fd7d4-581a-7eef-8ba0-d7ecb05517e8';
 const JSONBLOB_URL = `https://jsonblob.com/api/jsonBlob/${JSONBLOB_ID}`;
+// One-time safe migration: the previous blob may have real logged runs on it
+// from the short window it was live. The first time anyone loads the site
+// on the new blob, pull anything real from the old one and merge it in
+// (never overwrites, only fills gaps) — then it never touches the old blob again.
+const MIGRATE_FROM_BLOB_ID = '019fd7cd-0501-7c44-b210-a37e0b1aa2d7';
+const MIGRATE_FROM_URL = `https://jsonblob.com/api/jsonBlob/${MIGRATE_FROM_BLOB_ID}`;
 
 // Seed roster — used only to auto-initialize the blob the very first time
 // anyone loads the site after setup (blob starts as {init:true}). Once real
@@ -539,7 +545,9 @@ async function saveParticipants(mutateFn, attempt){
 }
 
 function refreshCache(){
-  cachedParticipants = Object.entries(participantsData).map(([slug, p]) => ({...p, slug}));
+  cachedParticipants = Object.entries(participantsData)
+    .filter(([slug]) => !slug.startsWith('_'))
+    .map(([slug, p]) => ({...p, slug}));
 }
 
 async function loadAll(){
@@ -551,6 +559,39 @@ async function loadAll(){
     }catch(e){
       data = SEED_PARTICIPANTS; // show seed locally even if the write failed
     }
+  }
+
+  // One-time migration from the previous blob, in case it picked up any
+  // real runs during the short window it was live. Only merges in logs
+  // that aren't already here — never overwrites anything, and marks
+  // itself done so it only ever runs once.
+  if(!data._migratedFromPrevious){
+    try{
+      const res = await fetch(MIGRATE_FROM_URL + '?t=' + Date.now(), { cache: 'no-store' });
+      if(res.ok){
+        const oldData = await res.json().catch(()=> null);
+        if(oldData && !oldData.init){
+          let migrated = false;
+          Object.entries(oldData).forEach(([slug, p]) => {
+            if(slug.startsWith('_')) return;
+            if(!data[slug]){
+              data[slug] = { name: p.name, category: p.category, logs: {...(p.logs||{})} };
+              migrated = true;
+            } else {
+              Object.entries(p.logs || {}).forEach(([date, km]) => {
+                if(data[slug].logs[date] === undefined){
+                  data[slug].logs[date] = km;
+                  migrated = true;
+                }
+              });
+            }
+          });
+          if(migrated){ /* merged into data in-memory above, single write happens below */ }
+        }
+      }
+    }catch(e){ /* old blob unreachable — nothing to migrate, safe to continue */ }
+    data._migratedFromPrevious = true;
+    try{ data = await writeParticipants(data); }catch(e){ /* still proceed locally */ }
   }
 
   // Apply any pending additions that aren't in the bucket yet.
