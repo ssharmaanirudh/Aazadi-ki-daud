@@ -568,10 +568,50 @@ async function loadAll(){
     }catch(e){ /* still show locally even if persisting failed */ }
   }
 
+  // Personal safety net: if this device previously logged runs for someone
+  // whose remote data is now missing or incomplete (e.g. the shared store
+  // had an outage), restore those specific dates from this browser's own
+  // local backup and push them back. Never overwrites remote data that's
+  // already there — only fills in what's actually missing.
+  let restored = false;
+  try{
+    for(let i = 0; i < localStorage.length; i++){
+      const key = localStorage.key(i);
+      if(!key || !key.startsWith('azaadi_backup_')) continue;
+      const slug = key.replace('azaadi_backup_', '');
+      const backup = JSON.parse(localStorage.getItem(key) || '{}');
+      if(!backup.logs) continue;
+      if(!data[slug]){
+        data[slug] = { name: backup.name, category: backup.category, logs: {} };
+      }
+      Object.entries(backup.logs).forEach(([date, km]) => {
+        if(data[slug].logs[date] === undefined){
+          data[slug].logs[date] = km;
+          restored = true;
+        }
+      });
+    }
+  }catch(e){ /* localStorage unavailable — skip silently */ }
+  if(restored){
+    try{ data = await writeParticipants(data); }catch(e){ /* still show locally */ }
+  }
+
   participantsData = data;
   refreshCache();
 }
 // -------------------------------------------------------------------------
+
+function localBackupSave(slug, name, category, date, km){
+  try{
+    const key = 'azaadi_backup_' + slug;
+    const existing = JSON.parse(localStorage.getItem(key) || '{"logs":{}}');
+    existing.name = name;
+    existing.category = category;
+    existing.logs = existing.logs || {};
+    existing.logs[date] = km;
+    localStorage.setItem(key, JSON.stringify(existing));
+  }catch(e){ /* localStorage unavailable — non-fatal, remote save still happened */ }
+}
 
 
 function slugify(name){
@@ -793,6 +833,7 @@ async function submitEntry(){
     refreshCache();
 
     const savedCategory = participantsData[slug].category;
+    localBackupSave(slug, name, savedCategory, date, distance);
 
     const msg = document.getElementById('formMsg');
     msg.textContent = `Saved! ${name}'s ${date} run of ${distance} km is on the board.`;
