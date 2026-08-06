@@ -601,16 +601,67 @@ async function loadAll(){
 }
 // -------------------------------------------------------------------------
 
-function localBackupSave(slug, name, category, date, km){
+function localBackupSave(slug, name, category, date, km, synced){
   try{
     const key = 'azaadi_backup_' + slug;
-    const existing = JSON.parse(localStorage.getItem(key) || '{"logs":{}}');
+    const existing = JSON.parse(localStorage.getItem(key) || '{"logs":{},"unsynced":[]}');
     existing.name = name;
     existing.category = category;
     existing.logs = existing.logs || {};
     existing.logs[date] = km;
+    existing.unsynced = existing.unsynced || [];
+    existing.unsynced = existing.unsynced.filter(d => d !== date);
+    if(!synced) existing.unsynced.push(date);
     localStorage.setItem(key, JSON.stringify(existing));
   }catch(e){ /* localStorage unavailable — non-fatal, remote save still happened */ }
+}
+
+function getAllUnsyncedEntries(){
+  const out = [];
+  try{
+    for(let i = 0; i < localStorage.length; i++){
+      const key = localStorage.key(i);
+      if(!key || !key.startsWith('azaadi_backup_')) continue;
+      const slug = key.replace('azaadi_backup_', '');
+      const backup = JSON.parse(localStorage.getItem(key) || '{}');
+      (backup.unsynced || []).forEach(date => {
+        if(backup.logs && backup.logs[date] !== undefined){
+          out.push({ slug, name: backup.name, category: backup.category, date, km: backup.logs[date] });
+        }
+      });
+    }
+  }catch(e){ /* ignore */ }
+  return out;
+}
+
+let backgroundSyncTimer = null;
+function scheduleBackgroundSync(delayMs){
+  if(backgroundSyncTimer) return; // already scheduled, don't stack timers
+  backgroundSyncTimer = setTimeout(async () => {
+    backgroundSyncTimer = null;
+    const pending = getAllUnsyncedEntries();
+    if(pending.length === 0) return;
+    try{
+      const updated = await saveParticipants(data => {
+        pending.forEach(p => {
+          const existing = data[p.slug];
+          const participant = existing || { name: p.name, category: p.category, logs: {} };
+          participant.logs = participant.logs || {};
+          participant.logs[p.date] = p.km;
+          data[p.slug] = participant;
+        });
+        return data;
+      });
+      participantsData = updated;
+      refreshCache();
+      pending.forEach(p => localBackupSave(p.slug, p.name, p.category, p.date, p.km, true));
+      // Refresh the board quietly if the person is still looking at it.
+      try{ renderBoard(); renderHero(); }catch(e){}
+    }catch(e){
+      // Still failing — try again later with a longer wait, don't hammer it.
+      scheduleBackgroundSync((delayMs || 15000) * 2);
+    }
+  }, delayMs || 15000);
 }
 
 
@@ -814,42 +865,55 @@ async function submitEntry(){
   const submitBtn = document.getElementById('submitBtn');
   submitBtn.disabled = true;
   submitBtn.textContent = 'Saving…';
+  const slug = slugify(name);
+  const savedCategory = (findExisting(name) && findExisting(name).category) || category;
 
+  // Step 1: save locally FIRST. This always succeeds — it's just this
+  // browser's storage, no network involved — so the person's data is
+  // captured immediately no matter what happens next with the shared board.
+  localBackupSave(slug, name, savedCategory, date, distance, /*synced*/ false);
+
+  // Reflect it in the on-screen board right away too, so it doesn't look
+  // like nothing happened while the background sync is still working.
+  if(!participantsData[slug]){
+    participantsData[slug] = { name, category: savedCategory, logs: {} };
+  }
+  participantsData[slug].logs[date] = distance;
+  refreshCache();
+
+  const msg = document.getElementById('formMsg');
+  msg.textContent = `Saved! ${name}'s ${date} run of ${distance} km is recorded — syncing to the shared board…`;
+  msg.className = 'form-msg ok';
+  document.getElementById('fDistance').value = '';
+  await renderHero();
+  document.getElementById('fCategory').value = savedCategory;
+  populateNameSelect();
+  document.getElementById('fNameSelect').value = name;
+  toggleNewNameInput();
+  switchTab(savedCategory);
+
+  // Step 2: try to sync to the shared board. If this fails for any reason
+  // (rate limit, brief outage), it is NOT data loss — it's already safe on
+  // this device, and both the retry below and the automatic self-heal on
+  // every future page load will keep trying until it's synced.
   try{
-    const slug = slugify(name);
-
     const updated = await saveParticipants(data => {
       const existing = data[slug];
-      const participant = existing || { name, category, logs: {} };
+      const participant = existing || { name, category: savedCategory, logs: {} };
       participant.name = name;
-      if(!existing){ participant.category = category; }
       participant.logs = participant.logs || {};
       participant.logs[date] = distance;
       data[slug] = participant;
       return data;
     });
-
     participantsData = updated;
     refreshCache();
-
-    const savedCategory = participantsData[slug].category;
-    localBackupSave(slug, name, savedCategory, date, distance);
-
-    const msg = document.getElementById('formMsg');
-    msg.textContent = `Saved! ${name}'s ${date} run of ${distance} km is on the board.`;
-    msg.className = 'form-msg ok';
-    document.getElementById('fDistance').value = '';
-
-    await renderHero();
-    document.getElementById('fCategory').value = savedCategory;
-    populateNameSelect();
-    document.getElementById('fNameSelect').value = name;
-    toggleNewNameInput();
-    switchTab(savedCategory);
+    localBackupSave(slug, name, savedCategory, date, distance, /*synced*/ true);
+    msg.textContent = `Saved and synced! ${name}'s ${date} run of ${distance} km is live on the board.`;
   }catch(e){
-    const msg = document.getElementById('formMsg');
-    msg.textContent = 'Could not save — ' + (e && e.message ? e.message : 'unknown error') + '. Please screenshot this and try again in a moment.';
-    msg.className = 'form-msg err';
+    msg.textContent = `Saved on your device ✅ — the shared board is briefly busy, so it'll finish syncing automatically in the background. Nothing is lost.`;
+    msg.className = 'form-msg ok';
+    scheduleBackgroundSync();
   }finally{
     submitBtn.disabled = false;
     submitBtn.textContent = "Save today's run";
@@ -866,6 +930,9 @@ async function submitEntry(){
   await renderHero();
   populateNameSelect();
   renderBoard();
+  // If a previous visit left anything unsynced (closed tab mid-retry, etc.),
+  // give it one attempt now rather than waiting for another save to trigger it.
+  if(getAllUnsyncedEntries().length > 0){ scheduleBackgroundSync(3000); }
   // No background auto-refresh — every open tab silently polling was the
   // main driver behind hitting the free storage service's rate limit.
   // Data still refreshes on page load and immediately after every save.
