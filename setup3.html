@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Setup v3 — Azaadi Ki Daud</title>
+<style>
+  body{ margin:0; background:#0A1128; color:#fff; font-family:-apple-system,sans-serif; padding:20px; }
+  h1{ font-size:18px; }
+  .step{ background:#141B34; border-radius:12px; padding:16px; margin-bottom:14px; border:1px solid rgba(255,255,255,0.1); }
+  .label{ font-size:12px; color:#8f95ac; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; }
+  .ok{ color:#4ade80; } .fail{ color:#ff6b6b; } .pending{ color:#FFD60A; }
+  pre{ white-space:pre-wrap; word-break:break-all; font-size:12px; background:#0A1128; padding:10px; border-radius:8px; margin:8px 0 0; }
+  .code-box{
+    margin-top:10px; padding:16px; background:#0A1128; border-radius:10px;
+    border:2px dashed #FF9933; font-size:18px; font-weight:700;
+    word-break:break-all; font-family:monospace; color:#FFD60A;
+  }
+</style>
+</head>
+<body>
+  <h1>🔍 Setting up fresh storage (with real persistence proof)</h1>
+  <p style="color:#aeb4c8;font-size:13px;">Runs automatically. Wait for all steps, screenshot, send back.</p>
+  <div id="steps"></div>
+
+<script>
+const stepsEl = document.getElementById('steps');
+function addStep(label){
+  const div = document.createElement('div');
+  div.className = 'step';
+  div.innerHTML = `<div class="label">${label}</div><div class="pending">Running…</div>`;
+  stepsEl.appendChild(div);
+  return div;
+}
+function finish(div, ok, text){
+  div.innerHTML = `<div class="label">${div.querySelector('.label').textContent}</div><div class="${ok?'ok':'fail'}">${ok?'✅ OK':'❌ FAILED'}</div><pre>${text}</pre>`;
+}
+
+(async function run(){
+  let blobId = null;
+
+  let s1 = addStep('1. Create fresh blob');
+  try{
+    const res = await fetch('https://jsonblob.com/api/jsonBlob', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ init: true })
+    });
+    const location = res.headers.get('Location') || res.headers.get('location') || '';
+    if(location){ blobId = location.split('/').filter(Boolean).pop(); }
+    finish(s1, !!blobId, 'status: ' + res.status + '\nLocation: ' + location);
+  }catch(e){ finish(s1, false, 'THREW: ' + e.message); }
+
+  let s2 = addStep('2. Write real roster data');
+  if(blobId){
+    try{
+      const seedData = {"anirudh-sharma":{"name":"Anirudh Sharma","category":"Option 1","logs":{}},"rishi":{"name":"Rishi","category":"Option 1","logs":{}},"radha":{"name":"Radha","category":"Option 1","logs":{}},"swati-sharma":{"name":"Swati Sharma","category":"Option 1","logs":{}},"mukesh-kumar":{"name":"Mukesh Kumar","category":"Option 1","logs":{}},"sanghamitra":{"name":"Sanghamitra","category":"Option 1","logs":{}},"mohit-singhal":{"name":"Mohit Singhal","category":"Option 1","logs":{}},"pradeepika":{"name":"Pradeepika","category":"Option 1","logs":{}},"abbas":{"name":"Abbas","category":"Option 1","logs":{}},"manju-pathania":{"name":"Manju Pathania","category":"Option 1","logs":{}},"ramesh":{"name":"Ramesh","category":"Option 1","logs":{}},"dr-aruna":{"name":"Dr Aruna","category":"Option 1","logs":{}},"davinder":{"name":"Davinder","category":"Option 1","logs":{}},"natalie":{"name":"Natalie","category":"Option 1","logs":{}},"prashant-tiwari":{"name":"Prashant Tiwari","category":"Option 2","logs":{}},"laksh-yadav":{"name":"Laksh Yadav","category":"Option 2","logs":{}},"sunil-kumar":{"name":"Sunil Kumar","category":"Option 2","logs":{}},"gourav":{"name":"Gourav","category":"Option 2","logs":{}},"braj-kishor":{"name":"Braj Kishor","category":"Option 2","logs":{}},"naveen-joshi":{"name":"Naveen Joshi","category":"Option 2","logs":{}},"shabnam-parveen":{"name":"Shabnam Parveen","category":"Option 2","logs":{}},"yug":{"name":"Yug","category":"Option 2","logs":{}},"ajaibir-singh":{"name":"Ajaibir Singh","category":"Option 2","logs":{}}};
+      const res = await fetch('https://jsonblob.com/api/jsonBlob/' + blobId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(seedData)
+      });
+      finish(s2, res.ok, 'status: ' + res.status + ' — wrote 23 runners');
+    }catch(e){ finish(s2, false, 'THREW: ' + e.message); }
+  } else { finish(s2, false, 'Skipped — no blob ID.'); }
+
+  let s3 = addStep('3. Read it back (proves it actually persisted)');
+  if(blobId){
+    try{
+      const res = await fetch('https://jsonblob.com/api/jsonBlob/' + blobId + '?t=' + Date.now(), { cache: 'no-store' });
+      const json = await res.json().catch(()=>null);
+      const count = json ? Object.keys(json).length : 0;
+      finish(s3, res.ok && count === 23, 'status: ' + res.status + ' — found ' + count + ' runners (expect 23)');
+    }catch(e){ finish(s3, false, 'THREW: ' + e.message); }
+  } else { finish(s3, false, 'Skipped.'); }
+
+  if(blobId){
+    const summary = document.createElement('div');
+    summary.className = 'step';
+    summary.innerHTML = '<div class="label">New Blob ID (send this to Claude)</div><div class="code-box">' + blobId + '</div>';
+    stepsEl.appendChild(summary);
+  }
+})();
+</script>
+</body>
+</html>
