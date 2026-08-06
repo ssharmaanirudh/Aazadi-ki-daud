@@ -490,15 +490,18 @@ async function writeParticipants(obj){
 
 async function saveParticipants(mutateFn, attempt){
   attempt = attempt || 0;
+  const MAX_ATTEMPTS = 4;
+  let updated;
+
   try{
     const current = (await fetchParticipantsRaw()) || {};
-    const updated = mutateFn(current);
-    return await writeParticipants(updated);
+    updated = mutateFn(JSON.parse(JSON.stringify(current)));
+    await writeParticipants(updated);
   }catch(e){
     // Rate limits need real backoff, not a quick retry — retrying fast just
     // adds another request into the same limited window and makes it worse.
     if(e && e.status === 429){
-      if(attempt < 1){
+      if(attempt < MAX_ATTEMPTS){
         await new Promise(r => setTimeout(r, 4000));
         return saveParticipants(mutateFn, attempt + 1);
       }
@@ -506,12 +509,33 @@ async function saveParticipants(mutateFn, attempt){
       friendly.status = 429;
       throw friendly;
     }
-    if(attempt < 2){
-      await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+    if(attempt < MAX_ATTEMPTS){
+      await new Promise(r => setTimeout(r, 400 * (attempt + 1)));
       return saveParticipants(mutateFn, attempt + 1);
     }
     throw e;
   }
+
+  // The whole blob gets overwritten on every save, so if someone else saved
+  // in the same instant, one of the two changes can silently vanish. Read
+  // back what's actually stored and confirm OUR change is really there —
+  // if not, redo the whole read→merge→write against fresh data.
+  try{
+    const verifyRead = await fetchParticipantsRaw();
+    if(JSON.stringify(verifyRead) !== JSON.stringify(updated)){
+      if(attempt < MAX_ATTEMPTS){
+        await new Promise(r => setTimeout(r, 300 + Math.random() * 500));
+        return saveParticipants(mutateFn, attempt + 1);
+      }
+      throw new Error('Could not confirm your save landed cleanly after several tries — someone else may be saving at the exact same moment. Please try again.');
+    }
+  }catch(e){
+    if(e && e.message && e.message.indexOf('Could not confirm') === 0) throw e;
+    // A network hiccup on the verify read itself shouldn't fail a write that
+    // otherwise succeeded — just skip verification this once.
+  }
+
+  return updated;
 }
 
 function refreshCache(){
