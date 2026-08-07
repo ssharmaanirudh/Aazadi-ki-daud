@@ -212,6 +212,22 @@
   .rank{font-family:'Bebas Neue';font-size:22px;color:#b8b8bf;}
   .rank.g{color:var(--saffron-deep);} .rank.s{color:#8b8b93;} .rank.b{color:var(--bronze);}
   .runner-name{font-weight:700;font-size:14.5px;}
+  .last-log{font-weight:500;font-size:11.5px;color:#9a9aa0;margin-top:2px;font-family:'IBM Plex Mono';}
+  .last-log.muted{opacity:0.6;}
+  .my-logs-list{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;}
+  .my-log-row{
+    display:flex;justify-content:space-between;align-items:center;
+    background:#FCFBF8;border:1px solid #e3e2dc;border-radius:8px;padding:8px 12px;font-size:13px;
+  }
+  .my-log-row .mlr-date{font-family:'IBM Plex Mono';color:#3b3b42;}
+  .my-log-row .mlr-km{font-family:'IBM Plex Mono';color:#6a6a74;margin-left:8px;}
+  .my-log-row .mlr-pending{font-size:10.5px;color:#c98a00;margin-left:8px;}
+  .mlr-delete{
+    background:none;border:none;color:#c94f6d;cursor:pointer;font-size:13px;padding:4px 8px;
+    border-radius:6px;font-weight:600;
+  }
+  .mlr-delete:hover{background:#fdeef1;}
+  .my-logs-empty{font-size:13px;color:#9a9aa0;padding:6px 2px;}
   .runner-badge{font-size:11px;margin-left:6px;}
   .mini-ring{width:38px;height:38px;}
   .stat{font-family:'IBM Plex Mono';font-size:13.5px;}
@@ -348,6 +364,10 @@
         </select>
         <input id="fNameNew" type="text" placeholder="Type your name" autocomplete="off" style="margin-top:8px;">
         <div class="field-error" id="errName"></div>
+      </div>
+      <div class="field full" id="myLogsWrap" style="display:none;">
+        <label>Your logged runs</label>
+        <div id="myLogsList" class="my-logs-list"></div>
       </div>
       <div class="field">
         <label for="fDate">Date</label>
@@ -642,6 +662,29 @@ async function loadAll(){
 }
 // -------------------------------------------------------------------------
 
+async function registerNameIfNew(slug, name, category){
+  if(participantsData[slug]) return; // already registered, nothing to do
+
+  // Reflect it immediately so the rest of the form (and the name dropdown)
+  // treats this person as real right away, even before the network call.
+  participantsData[slug] = { name, category, logs: {} };
+  refreshCache();
+  populateNameSelect();
+  document.getElementById('fNameSelect').value = name;
+  toggleNewNameInput();
+
+  try{
+    await saveParticipants(data => {
+      if(!data[slug]){ data[slug] = { name, category, logs: {} }; }
+      return data;
+    });
+  }catch(e){
+    // Best-effort — if this fails, the name still exists for the rest of
+    // this session, and submitting a run afterward will retry saving it
+    // to the shared board as part of that save.
+  }
+}
+
 function localBackupSave(slug, name, category, date, km, synced){
   try{
     const key = 'azaadi_backup_' + slug;
@@ -759,7 +802,10 @@ function computeStats(p){
   const compliant = values.every(v=>v>=1.999);
   const goal = GOALS[p.category] || 30;
   const pct = Math.min(100, Math.round((total/goal)*100));
-  return {...p, total, days, compliant, pct, goal};
+  const dates = Object.keys(logs).sort();
+  const lastDate = dates.length ? dates[dates.length-1] : null;
+  const lastKm = lastDate ? logs[lastDate] : null;
+  return {...p, total, days, compliant, pct, goal, lastDate, lastKm};
 }
 
 async function renderHero(){
@@ -785,6 +831,13 @@ function badgeFor(rank){
   return '';
 }
 
+function formatShortDate(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(d,10)} ${months[parseInt(m,10)-1]}`;
+}
+
 function renderBoard(){
   const filtered = cachedParticipants
     .filter(p=>p.category===currentTab)
@@ -800,10 +853,13 @@ function renderBoard(){
     const rank = i+1;
     const rankClass = rank===1?'g':rank===2?'s':rank===3?'b':'';
     const ring = ringSVG(p.pct, 38, 4, currentTab==='Option 2'?'#FF9933':'#138808', currentTab==='Option 2'?'#E8590C':'#0B5D0B', '#e3e2dc');
+    const lastLine = p.lastDate
+      ? `<div class="last-log">Last: ${formatShortDate(p.lastDate)} · ${p.lastKm}km</div>`
+      : `<div class="last-log muted">No runs yet</div>`;
     return `
       <div class="board-row">
         <span class="rank ${rankClass}">${rank}</span>
-        <span class="runner-name">${escapeHtml(p.name)}<span class="runner-badge">${badgeFor(rank)}</span></span>
+        <span class="runner-name">${escapeHtml(p.name)}<span class="runner-badge">${badgeFor(rank)}</span>${lastLine}</span>
         <svg class="mini-ring" viewBox="0 0 38 38">${ring}</svg>
         <span class="stat">${p.total.toFixed(1)} / ${p.goal} km</span>
         <span class="stat days">${p.days} days</span>
@@ -866,6 +922,82 @@ function toggleNewNameInput(){
   const newInput = document.getElementById('fNameNew');
   newInput.style.display = isNew ? '' : 'none';
   if(!isNew) newInput.value = '';
+  renderMyLogs();
+}
+
+function renderMyLogs(){
+  const wrap = document.getElementById('myLogsWrap');
+  const listEl = document.getElementById('myLogsList');
+  const nameSelectVal = document.getElementById('fNameSelect').value;
+
+  if(nameSelectVal === '__new__'){
+    wrap.style.display = 'none';
+    return;
+  }
+
+  const p = findExisting(nameSelectVal);
+  wrap.style.display = '';
+  const logs = (p && p.logs) || {};
+  const dates = Object.keys(logs).sort().reverse();
+
+  if(dates.length === 0){
+    listEl.innerHTML = '<div class="my-logs-empty">No runs logged yet for this name.</div>';
+    return;
+  }
+
+  const unsyncedDates = getAllUnsyncedEntries()
+    .filter(e => e.slug === slugify(nameSelectVal))
+    .map(e => e.date);
+
+  listEl.innerHTML = dates.map(date => {
+    const pending = unsyncedDates.includes(date) ? '<span class="mlr-pending">⏳ syncing</span>' : '';
+    return `
+      <div class="my-log-row">
+        <span><span class="mlr-date">${formatShortDate(date)}</span><span class="mlr-km">${logs[date]} km</span>${pending}</span>
+        <button class="mlr-delete" onclick="deleteLogEntry('${slugify(nameSelectVal)}','${date}')">🗑 Delete</button>
+      </div>`;
+  }).join('');
+}
+
+async function deleteLogEntry(slug, date){
+  if(!confirm(`Delete the ${formatShortDate(date)} entry? This can't be undone.`)) return;
+
+  // Remove locally first — this always works immediately.
+  try{
+    const key = 'azaadi_backup_' + slug;
+    const backup = JSON.parse(localStorage.getItem(key) || '{"logs":{},"unsynced":[]}');
+    if(backup.logs) delete backup.logs[date];
+    if(backup.unsynced) backup.unsynced = backup.unsynced.filter(d => d !== date);
+    localStorage.setItem(key, JSON.stringify(backup));
+  }catch(e){ /* localStorage unavailable, remote delete still proceeds below */ }
+
+  if(participantsData[slug] && participantsData[slug].logs){
+    delete participantsData[slug].logs[date];
+  }
+  refreshCache();
+  await renderHero();
+  renderBoard();
+  renderMyLogs();
+
+  // Then try to remove it from the shared board too, with a couple of
+  // direct retries — the background sync helper only pushes new entries,
+  // it doesn't know how to replay a deletion, so this needs its own retry.
+  async function tryRemoteDelete(attempt){
+    try{
+      await saveParticipants(data => {
+        if(data[slug] && data[slug].logs){ delete data[slug].logs[date]; }
+        return data;
+      });
+    }catch(e){
+      if(attempt < 2){
+        await new Promise(r => setTimeout(r, 4000));
+        return tryRemoteDelete(attempt + 1);
+      }
+      // Still failed — leave it deleted locally/on-screen; a manual retry
+      // (re-opening this list) will attempt the remote delete again next time.
+    }
+  }
+  tryRemoteDelete(0);
 }
 
 function clearErrors(){
@@ -883,8 +1015,29 @@ async function submitEntry(){
   const date = document.getElementById('fDate').value;
   const distance = parseFloat(document.getElementById('fDistance').value);
 
+  // Name + category are validated and registered FIRST, independent of
+  // whether today's date/distance turn out to be valid — so a mistyped
+  // distance never costs someone their name being saved for next time.
+  if(!name){
+    document.getElementById('errName').textContent = isNew ? 'Type your name.' : 'Choose your name.';
+    return;
+  }
+  if(isNew){
+    const clash = findExisting(name);
+    if(clash && clash.category !== category){
+      document.getElementById('errName').textContent =
+        `"${name}" is already registered under ${clash.category}. Switch category above, then pick your name from the list.`;
+      return;
+    }
+  }
+
+  const slug = slugify(name);
+  if(isNew && !participantsData[slug]){
+    await registerNameIfNew(slug, name, category);
+  }
+  const savedCategory = (participantsData[slug] && participantsData[slug].category) || category;
+
   let hasError = false;
-  if(!name){ document.getElementById('errName').textContent = isNew ? 'Type your name.' : 'Choose your name.'; hasError = true; }
   if(!date){ document.getElementById('errDate').textContent = 'Pick a date between 1–15 Aug.'; hasError = true; }
   else if(date < '2026-08-01' || date > '2026-08-15'){
     document.getElementById('errDate').textContent = 'Date must be within 1–15 August 2026.'; hasError = true;
@@ -892,22 +1045,11 @@ async function submitEntry(){
   if(isNaN(distance)){ document.getElementById('errDistance').textContent = 'Enter a distance.'; hasError = true; }
   else if(distance < 2){ document.getElementById('errDistance').textContent = 'Minimum 2 km required per day.'; hasError = true; }
 
-  if(!hasError && isNew){
-    const clash = findExisting(name);
-    if(clash && clash.category !== category){
-      document.getElementById('errName').textContent =
-        `"${name}" is already registered under ${clash.category}. Switch category above, then pick your name from the list.`;
-      hasError = true;
-    }
-  }
-
   if(hasError) return;
 
   const submitBtn = document.getElementById('submitBtn');
   submitBtn.disabled = true;
   submitBtn.textContent = 'Saving…';
-  const slug = slugify(name);
-  const savedCategory = (findExisting(name) && findExisting(name).category) || category;
 
   // Step 1: save locally FIRST. This always succeeds — it's just this
   // browser's storage, no network involved — so the person's data is
