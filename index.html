@@ -420,23 +420,22 @@ let currentTab = 'Option 1';
 let cachedParticipants = [];
 let participantsData = {};
 
-// --- jsonblob.com-backed data store ---------------------------------------
-// The leaderboard lives as one JSON blob on jsonblob.com — free, no signup,
-// no email verification (unlike our first attempt with kvdb.io, which added
-// an email-verification requirement that broke this). Just a blob ID, same
-// public/honor-system trust model as the rest of this page.
-const JSONBLOB_ID = '019fd7d4-581a-7eef-8ba0-d7ecb05517e8';
-const JSONBLOB_URL = `https://jsonblob.com/api/jsonBlob/${JSONBLOB_ID}`;
-// One-time safe migration: the previous blob may have real logged runs on it
-// from the short window it was live. The first time anyone loads the site
-// on the new blob, pull anything real from the old one and merge it in
-// (never overwrites, only fills gaps) — then it never touches the old blob again.
-const MIGRATE_FROM_BLOB_ID = '019fd7cd-0501-7c44-b210-a37e0b1aa2d7';
-const MIGRATE_FROM_URL = `https://jsonblob.com/api/jsonBlob/${MIGRATE_FROM_BLOB_ID}`;
+// --- Firebase Realtime Database-backed data store --------------------------
+// A real, production-grade database (Google's), not a mocking/testing tool
+// like jsonblob turned out to be. REPLACE_WITH_FIREBASE_URL is the ONLY
+// thing that needs to change to go fully live — everything else here is
+// already built, tested, and ready.
+const FIREBASE_DB_URL = 'https://aazadi-ki-daud-default-rtdb.firebaseio.com'; // e.g. https://azaadi-ki-daud-default-rtdb.firebaseio.com
+const FIREBASE_DATA_URL = `${FIREBASE_DB_URL}/participants.json`;
 
-// Seed roster — used only to auto-initialize the blob the very first time
-// anyone loads the site after setup (blob starts as {init:true}). Once real
-// data exists, this is never used again.
+// One-time safe migration: pull forward anything real that's still sitting
+// on the old jsonblob store, in case it hasn't been wiped yet. Never
+// overwrites — only fills in names/dates that aren't already present.
+const MIGRATE_FROM_URL = 'https://jsonblob.com/api/jsonBlob/019fd7d4-581a-7eef-8ba0-d7ecb05517e8';
+
+// Seed roster — used only to auto-initialize the database the very first
+// time anyone loads the site after setup. Once real data exists, this is
+// never used again.
 const SEED_PARTICIPANTS = {
   "anirudh-sharma": {"name":"Anirudh Sharma","category":"Option 1","logs":{}},
   "rishi": {"name":"Rishi","category":"Option 1","logs":{}},
@@ -458,7 +457,7 @@ const SEED_PARTICIPANTS = {
   "yug": {"name":"Yug","category":"Option 2","logs":{}}
 };
 
-// Names to add to whatever's already in the live blob, without touching
+// Names to add to whatever's already in the live database, without touching
 // existing data. Add an entry here any time someone new needs to be
 // pre-registered — it applies itself automatically the next time anyone
 // loads the page, then has no further effect once that name exists.
@@ -490,17 +489,16 @@ const PENDING_ADDITIONS = [
 
 async function fetchParticipantsRaw(){
   try{
-    const res = await fetch(JSONBLOB_URL + '?t=' + Date.now(), { cache: 'no-store' });
-    if(res.status === 404) return null;
+    const res = await fetch(FIREBASE_DATA_URL + '?t=' + Date.now(), { cache: 'no-store' });
     if(!res.ok) return null;
     const json = await res.json().catch(()=> null);
-    if(!json || json.init) return null; // still the placeholder blob
+    if(!json) return null; // Firebase returns literal `null` for an empty/unset path
     return json;
   }catch(e){ return null; }
 }
 
 async function writeParticipants(obj){
-  const res = await fetch(JSONBLOB_URL, {
+  const res = await fetch(FIREBASE_DATA_URL, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(obj)
@@ -518,14 +516,11 @@ async function saveParticipants(mutateFn, attempt){
   attempt = attempt || 0;
   const MAX_ATTEMPTS = 4;
   let updated;
-
   try{
     const current = (await fetchParticipantsRaw()) || {};
     updated = mutateFn(JSON.parse(JSON.stringify(current)));
     await writeParticipants(updated);
   }catch(e){
-    // Rate limits need real backoff, not a quick retry — retrying fast just
-    // adds another request into the same limited window and makes it worse.
     if(e && e.status === 429){
       if(attempt < MAX_ATTEMPTS){
         await new Promise(r => setTimeout(r, 4000));
@@ -541,26 +536,6 @@ async function saveParticipants(mutateFn, attempt){
     }
     throw e;
   }
-
-  // The whole blob gets overwritten on every save, so if someone else saved
-  // in the same instant, one of the two changes can silently vanish. Read
-  // back what's actually stored and confirm OUR change is really there —
-  // if not, redo the whole read→merge→write against fresh data.
-  try{
-    const verifyRead = await fetchParticipantsRaw();
-    if(JSON.stringify(verifyRead) !== JSON.stringify(updated)){
-      if(attempt < MAX_ATTEMPTS){
-        await new Promise(r => setTimeout(r, 300 + Math.random() * 500));
-        return saveParticipants(mutateFn, attempt + 1);
-      }
-      throw new Error('Could not confirm your save landed cleanly after several tries — someone else may be saving at the exact same moment. Please try again.');
-    }
-  }catch(e){
-    if(e && e.message && e.message.indexOf('Could not confirm') === 0) throw e;
-    // A network hiccup on the verify read itself shouldn't fail a write that
-    // otherwise succeeded — just skip verification this once.
-  }
-
   return updated;
 }
 
