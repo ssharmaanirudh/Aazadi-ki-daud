@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Azaadi Ki Daud — Flying Runners</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -410,6 +413,7 @@
   <img src="logo.jpg" alt="Flying Runners" style="width:64px;height:64px;margin:0 auto 14px;display:block;border-radius:50%;object-fit:cover;">
   <div class="foot-title">FLYING RUNNERS</div>
   <div class="foot-sub">Every km counts toward Azaadi. Let's finish together on 15th August 🇮🇳</div>
+  <div style="font-size:10px;color:#4a4f66;margin-top:10px;font-family:monospace;">build: 2026-08-08-2300</div>
 </footer>
 
 <script>
@@ -1032,6 +1036,13 @@ async function submitEntry(){
   submitBtn.disabled = true;
   submitBtn.textContent = 'Saving…';
 
+  // Absolute safety net: no matter what else happens in this function,
+  // the button can never stay stuck for more than 4 seconds.
+  const watchdog = setTimeout(() => {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Save today's run";
+  }, 4000);
+
   // Step 1: save locally FIRST. This always succeeds — it's just this
   // browser's storage, no network involved — so the person's data is
   // captured immediately no matter what happens next with the shared board.
@@ -1059,6 +1070,7 @@ async function submitEntry(){
   // Your data is already safely saved at this point — re-enable the button
   // now so you're never stuck waiting on the network. Syncing to the shared
   // board continues in the background regardless of what you do next.
+  clearTimeout(watchdog);
   submitBtn.disabled = false;
   submitBtn.textContent = "Save today's run";
 
