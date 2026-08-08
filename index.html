@@ -487,9 +487,15 @@ const PENDING_ADDITIONS = [
   { name: 'Ajaibir Singh', category: 'Option 2' }
 ];
 
+function fetchWithTimeout(url, opts, timeoutMs){
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs || 7000);
+  return fetch(url, { ...(opts||{}), signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 async function fetchParticipantsRaw(){
   try{
-    const res = await fetch(FIREBASE_DATA_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    const res = await fetchWithTimeout(FIREBASE_DATA_URL + '?t=' + Date.now(), { cache: 'no-store' }, 7000);
     if(!res.ok) return null;
     const json = await res.json().catch(()=> null);
     if(!json) return null; // Firebase returns literal `null` for an empty/unset path
@@ -498,11 +504,11 @@ async function fetchParticipantsRaw(){
 }
 
 async function writeParticipants(obj){
-  const res = await fetch(FIREBASE_DATA_URL, {
+  const res = await fetchWithTimeout(FIREBASE_DATA_URL, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(obj)
-  });
+  }, 7000);
   if(!res.ok){
     const bodyText = await res.text().catch(()=> '');
     const err = new Error('status ' + res.status + (bodyText ? ': ' + bodyText.slice(0,150) : ''));
@@ -514,7 +520,7 @@ async function writeParticipants(obj){
 
 async function saveParticipants(mutateFn, attempt){
   attempt = attempt || 0;
-  const MAX_ATTEMPTS = 4;
+  const MAX_ATTEMPTS = 2;
   let updated;
   try{
     const current = (await fetchParticipantsRaw()) || {};
@@ -1050,6 +1056,12 @@ async function submitEntry(){
   toggleNewNameInput();
   switchTab(savedCategory);
 
+  // Your data is already safely saved at this point — re-enable the button
+  // now so you're never stuck waiting on the network. Syncing to the shared
+  // board continues in the background regardless of what you do next.
+  submitBtn.disabled = false;
+  submitBtn.textContent = "Save today's run";
+
   // Step 2: try to sync to the shared board. If this fails for any reason
   // (rate limit, brief outage), it is NOT data loss — it's already safe on
   // this device, and both the retry below and the automatic self-heal on
@@ -1068,13 +1080,11 @@ async function submitEntry(){
     refreshCache();
     localBackupSave(slug, name, savedCategory, date, distance, /*synced*/ true);
     msg.textContent = `Saved and synced! ${name}'s ${date} run of ${distance} km is live on the board.`;
+    renderMyLogs();
   }catch(e){
     msg.textContent = `Saved on your device ✅ — the shared board is briefly busy, so it'll finish syncing automatically in the background. Nothing is lost.`;
     msg.className = 'form-msg ok';
     scheduleBackgroundSync();
-  }finally{
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Save today's run";
   }
 }
 
